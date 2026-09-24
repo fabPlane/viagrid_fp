@@ -1,0 +1,96 @@
+{
+  "name": "3.3 V Buck Regulator",
+  "description": "A compact switch-mode power supply based on the XL4005 (or LM2596) step-down converter. Accepts 5–40 V input and delivers a regulated 3.3 V / 2 A output. Great introduction to inductor-based regulation, feedback networks, and bypass capacitor placement.",
+  "components": [
+    {
+      "id": "U1",
+      "type": "buck_converter_xl4005",
+      "label": "XL4005",
+      "position": { "x": 5, "y": 4 },
+      "pins": {
+        "VIN": 1,
+        "GND": 2,
+        "OUTPUT": 3,
+        "FB": 4,
+        "EN": 5
+      }
+    },
+    {
+      "id": "L1",
+      "type": "inductor",
+      "label": "22µH 3A",
+      "position": { "x": 8, "y": 4 },
+      "pins": { "A": 1, "B": 2 }
+    },
+    {
+      "id": "D1",
+      "type": "schottky_diode",
+      "label": "SS34",
+      "position": { "x": 8, "y": 6 },
+      "pins": { "A": 1, "K": 2 }
+    },
+    {
+      "id": "C1",
+      "type": "capacitor_electrolytic",
+      "label": "100µF 50V",
+      "position": { "x": 3, "y": 3 },
+      "pins": { "+": 1, "-": 2 }
+    },
+    {
+      "id": "C2",
+      "type": "capacitor_electrolytic",
+      "label": "220µF 10V",
+      "position": { "x": 10, "y": 3 },
+      "pins": { "+": 1, "-": 2 }
+    },
+    {
+      "id": "C3",
+      "type": "capacitor_ceramic",
+      "label": "100nF",
+      "position": { "x": 3, "y": 5 },
+      "pins": { "A": 1, "B": 2 }
+    },
+    {
+      "id": "R1",
+      "type": "resistor",
+      "label": "68kΩ",
+      "position": { "x": 10, "y": 5 },
+      "pins": { "A": 1, "B": 2 }
+    },
+    {
+      "id": "R2",
+      "type": "resistor",
+      "label": "33kΩ",
+      "position": { "x": 10, "y": 7 },
+      "pins": { "A": 1, "B": 2 }
+    },
+    {
+      "id": "J1",
+      "type": "connector_2pin",
+      "label": "VIN",
+      "position": { "x": 1, "y": 2 },
+      "pins": { "VCC": 1, "GND": 2 }
+    },
+    {
+      "id": "J2",
+      "type": "connector_2pin",
+      "label": "3V3 OUT",
+      "position": { "x": 12, "y": 2 },
+      "pins": { "VCC": 1, "GND": 2 }
+    }
+  ],
+  "nets": [
+    { "name": "VIN",   "connections": [["J1","VCC"],  ["U1","VIN"],  ["C1","+"], ["C3","A"]] },
+    { "name": "GND",   "connections": [["J1","GND"],  ["U1","GND"],  ["C1","-"], ["C3","B"], ["D1","A"], ["C2","-"], ["R2","B"], ["J2","GND"]] },
+    { "name": "SW",    "connections": [["U1","OUTPUT"], ["L1","A"], ["D1","K"]] },
+    { "name": "VOUT",  "connections": [["L1","B"], ["C2","+"], ["R1","A"], ["J2","VCC"]] },
+    { "name": "FB",    "connections": [["U1","FB"], ["R1","B"], ["R2","A"]] },
+    { "name": "EN",    "connections": [["U1","EN"],  ["U1","VIN"]] }
+  ],
+  "board": {
+    "width": 14,
+    "height": 10,
+    "unit": "mm",
+    "grid": 1.0
+  }
+}

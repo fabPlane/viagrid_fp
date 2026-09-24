@@ -1,0 +1,130 @@
+{
+  "name": "RS-485 Isolated Transceiver",
+  "description": "An opto-isolated RS-485 transceiver board using the MAX485 IC and a PC817 optocoupler pair for galvanic isolation of the data lines. Supports multi-drop bus wiring for Modbus RTU. Demonstrates bus termination, fail-safe biasing resistors, and isolated power domains.",
+  "components": [
+    {
+      "id": "U1",
+      "type": "rs485_transceiver_max485",
+      "label": "MAX485",
+      "position": { "x": 6, "y": 4 },
+      "pins": {
+        "RO": 1, "RE_N": 2, "DE": 3, "DI": 4,
+        "GND": 5, "A": 6, "B": 7, "VCC": 8
+      }
+    },
+    {
+      "id": "OK1",
+      "type": "optocoupler_pc817",
+      "label": "TX ISO",
+      "position": { "x": 3, "y": 3 },
+      "pins": { "A": 1, "K": 2, "C": 3, "E": 4 }
+    },
+    {
+      "id": "OK2",
+      "type": "optocoupler_pc817",
+      "label": "RX ISO",
+      "position": { "x": 3, "y": 6 },
+      "pins": { "A": 1, "K": 2, "C": 3, "E": 4 }
+    },
+    {
+      "id": "J1",
+      "type": "connector_3pin",
+      "label": "RS-485 BUS",
+      "position": { "x": 10, "y": 4 },
+      "pins": { "A": 1, "B": 2, "GND": 3 }
+    },
+    {
+      "id": "J2",
+      "type": "header_1x4",
+      "label": "MCU SIDE",
+      "position": { "x": 1, "y": 4 },
+      "pins": { "TX": 1, "RX": 2, "DE": 3, "GND": 4 }
+    },
+    {
+      "id": "J3",
+      "type": "connector_2pin",
+      "label": "ISO PWR 5V",
+      "position": { "x": 1, "y": 2 },
+      "pins": { "VCC": 1, "GND": 2 }
+    },
+    {
+      "id": "J4",
+      "type": "connector_2pin",
+      "label": "BUS PWR 5V",
+      "position": { "x": 10, "y": 2 },
+      "pins": { "VCC": 1, "GND": 2 }
+    },
+    {
+      "id": "R1",
+      "type": "resistor",
+      "label": "470Ω TX",
+      "position": { "x": 2, "y": 3 },
+      "pins": { "A": 1, "B": 2 }
+    },
+    {
+      "id": "R2",
+      "type": "resistor",
+      "label": "10kΩ RX pull",
+      "position": { "x": 5, "y": 6 },
+      "pins": { "A": 1, "B": 2 }
+    },
+    {
+      "id": "R3",
+      "type": "resistor",
+      "label": "120Ω TERM",
+      "position": { "x": 10, "y": 6 },
+      "pins": { "A": 1, "B": 2 }
+    },
+    {
+      "id": "R4",
+      "type": "resistor",
+      "label": "560Ω BIAS",
+      "position": { "x": 8, "y": 3 },
+      "pins": { "A": 1, "B": 2 }
+    },
+    {
+      "id": "R5",
+      "type": "resistor",
+      "label": "560Ω BIAS",
+      "position": { "x": 8, "y": 5 },
+      "pins": { "A": 1, "B": 2 }
+    },
+    {
+      "id": "C1",
+      "type": "capacitor_ceramic",
+      "label": "100nF",
+      "position": { "x": 6, "y": 2 },
+      "pins": { "A": 1, "B": 2 }
+    },
+    {
+      "id": "C2",
+      "type": "capacitor_ceramic",
+      "label": "100nF",
+      "position": { "x": 10, "y": 3 },
+      "pins": { "A": 1, "B": 2 }
+    }
+  ],
+  "nets": [
+    { "name": "VCC_ISO",  "connections": [["J3","VCC"],  ["OK1","A"],   ["R2","A"],  ["C1","A"]] },
+    { "name": "GND_ISO",  "connections": [["J3","GND"],  ["J2","GND"],  ["OK2","E"], ["C1","B"]] },
+    { "name": "TX_MCU",   "connections": [["J2","TX"],   ["R1","A"]] },
+    { "name": "TX_OPT",   "connections": [["R1","B"],    ["OK1","A"]] },
+    { "name": "OK1_K",    "connections": [["OK1","K"],   ["GND_ISO"]] },
+    { "name": "VCC_BUS",  "connections": [["J4","VCC"],  ["U1","VCC"],  ["R4","A"],  ["C2","A"]] },
+    { "name": "GND_BUS",  "connections": [["J4","GND"],  ["U1","GND"],  ["R5","B"],  ["C2","B"], ["J1","GND"]] },
+    { "name": "DI",       "connections": [["U1","DI"],   ["OK1","C"]] },
+    { "name": "OK1_VCC",  "connections": [["OK1","C"],   ["VCC_BUS"]] },
+    { "name": "DE_RE",    "connections": [["U1","DE"],   ["U1","RE_N"], ["J2","DE"]] },
+    { "name": "RO",       "connections": [["U1","RO"],   ["OK2","A"],   ["R2","B"]] },
+    { "name": "RX_MCU",   "connections": [["J2","RX"],   ["OK2","C"]] },
+    { "name": "OK2_GND",  "connections": [["OK2","K"],   ["GND_BUS"]] },
+    { "name": "BUS_A",    "connections": [["U1","A"],    ["J1","A"],    ["R4","B"],  ["R3","A"]] },
+    { "name": "BUS_B",    "connections": [["U1","B"],    ["J1","B"],    ["R5","A"],  ["R3","B"]] }
+  ],
+  "board": {
+    "width": 12,
+    "height": 9,
+    "unit": "mm",
+    "grid": 1.0
+  }
+}

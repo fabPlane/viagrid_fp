@@ -1,0 +1,123 @@
+{
+  "name": "USB-C Power Delivery Sink",
+  "description": "A USB-C PD sink board using the FUSB302 or CH224K negotiation IC to request 9 V or 12 V from a USB-C PD charger, then deliver it through a TVS protection diode to screw-terminal output. Teaches USB-C CC pin handling, PD negotiation, and ESD protection.",
+  "components": [
+    {
+      "id": "U1",
+      "type": "usb_pd_controller_ch224k",
+      "label": "CH224K",
+      "position": { "x": 5, "y": 4 },
+      "pins": {
+        "VBUS": 1,
+        "CC1": 2,
+        "CC2": 3,
+        "GND": 4,
+        "CFG1": 5,
+        "CFG2": 6,
+        "CFG3": 7,
+        "PG": 8
+      }
+    },
+    {
+      "id": "J1",
+      "type": "usb_c_receptacle",
+      "label": "USB-C IN",
+      "position": { "x": 1, "y": 4 },
+      "pins": {
+        "VBUS": 1,
+        "CC1": 2,
+        "CC2": 3,
+        "GND": 4,
+        "D+": 5,
+        "D-": 6
+      }
+    },
+    {
+      "id": "J2",
+      "type": "screw_terminal_2pin",
+      "label": "OUT",
+      "position": { "x": 10, "y": 4 },
+      "pins": { "VCC": 1, "GND": 2 }
+    },
+    {
+      "id": "D1",
+      "type": "tvs_diode",
+      "label": "SMAJ15A",
+      "position": { "x": 8, "y": 4 },
+      "pins": { "A": 1, "K": 2 }
+    },
+    {
+      "id": "C1",
+      "type": "capacitor_electrolytic",
+      "label": "100µF 25V",
+      "position": { "x": 8, "y": 6 },
+      "pins": { "+": 1, "-": 2 }
+    },
+    {
+      "id": "C2",
+      "type": "capacitor_ceramic",
+      "label": "100nF",
+      "position": { "x": 6, "y": 6 },
+      "pins": { "A": 1, "B": 2 }
+    },
+    {
+      "id": "R1",
+      "type": "resistor",
+      "label": "5.1kΩ",
+      "position": { "x": 3, "y": 2 },
+      "pins": { "A": 1, "B": 2 }
+    },
+    {
+      "id": "R2",
+      "type": "resistor",
+      "label": "5.1kΩ",
+      "position": { "x": 3, "y": 6 },
+      "pins": { "A": 1, "B": 2 }
+    },
+    {
+      "id": "SW1",
+      "type": "dip_switch_3pos",
+      "label": "VOLTAGE SEL",
+      "position": { "x": 7, "y": 2 },
+      "pins": {
+        "CFG1_A": 1, "CFG1_B": 2,
+        "CFG2_A": 3, "CFG2_B": 4,
+        "CFG3_A": 5, "CFG3_B": 6
+      }
+    },
+    {
+      "id": "D2",
+      "type": "led",
+      "label": "PG LED",
+      "position": { "x": 9, "y": 2 },
+      "pins": { "A": 1, "K": 2 }
+    },
+    {
+      "id": "R3",
+      "type": "resistor",
+      "label": "1kΩ",
+      "position": { "x": 10, "y": 2 },
+      "pins": { "A": 1, "B": 2 }
+    }
+  ],
+  "nets": [
+    { "name": "VBUS",  "connections": [["J1","VBUS"], ["U1","VBUS"], ["C2","A"]] },
+    { "name": "GND",   "connections": [["J1","GND"],  ["U1","GND"],  ["C2","B"], ["C1","-"], ["D1","A"], ["J2","GND"], ["R1","B"], ["R2","B"]] },
+    { "name": "CC1",   "connections": [["J1","CC1"],  ["U1","CC1"],  ["R1","A"]] },
+    { "name": "CC2",   "connections": [["J1","CC2"],  ["U1","CC2"],  ["R2","A"]] },
+    { "name": "VOUT",  "connections": [["D1","K"], ["C1","+"], ["J2","VCC"]] },
+    { "name": "PG",    "connections": [["U1","PG"],   ["D2","A"]] },
+    { "name": "PG_R",  "connections": [["D2","K"],    ["R3","A"]] },
+    { "name": "PG_GND","connections": [["R3","B"],    ["J2","GND"]] },
+    { "name": "CFG1",  "connections": [["U1","CFG1"], ["SW1","CFG1_B"]] },
+    { "name": "CFG2",  "connections": [["U1","CFG2"], ["SW1","CFG2_B"]] },
+    { "name": "CFG3",  "connections": [["U1","CFG3"], ["SW1","CFG3_B"]] },
+    { "name": "CFG_V", "connections": [["SW1","CFG1_A"], ["SW1","CFG2_A"], ["SW1","CFG3_A"], ["U1","VBUS"]] }
+  ],
+  "board": {
+    "width": 12,
+    "height": 9,
+    "unit": "mm",
+    "grid": 1.0
+  }
+}

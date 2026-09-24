@@ -1,0 +1,88 @@
+{
+  "name": "LED Blinker",
+  "description": "A classic intro circuit: an LED driven by a 555 timer in astable mode. The 555 timer oscillates, toggling the LED on and off at a rate set by R1, R2, and C1.",
+  "components": [
+    {
+      "id": "U1",
+      "type": "555_timer",
+      "label": "NE555",
+      "position": { "x": 5, "y": 4 },
+      "pins": {
+        "GND": 1,
+        "TRIGGER": 2,
+        "OUTPUT": 3,
+        "RESET": 4,
+        "CONTROL": 5,
+        "THRESHOLD": 6,
+        "DISCHARGE": 7,
+        "VCC": 8
+      }
+    },
+    {
+      "id": "R1",
+      "type": "resistor",
+      "label": "10kΩ",
+      "position": { "x": 8, "y": 2 },
+      "pins": { "A": 1, "B": 2 }
+    },
+    {
+      "id": "R2",
+      "type": "resistor",
+      "label": "47kΩ",
+      "position": { "x": 8, "y": 4 },
+      "pins": { "A": 1, "B": 2 }
+    },
+    {
+      "id": "R3",
+      "type": "resistor",
+      "label": "330Ω",
+      "position": { "x": 3, "y": 4 },
+      "pins": { "A": 1, "B": 2 }
+    },
+    {
+      "id": "C1",
+      "type": "capacitor_electrolytic",
+      "label": "10µF",
+      "position": { "x": 8, "y": 6 },
+      "pins": { "+": 1, "-": 2 }
+    },
+    {
+      "id": "C2",
+      "type": "capacitor_ceramic",
+      "label": "0.01µF",
+      "position": { "x": 6, "y": 6 },
+      "pins": { "A": 1, "B": 2 }
+    },
+    {
+      "id": "D1",
+      "type": "led",
+      "label": "LED RED",
+      "position": { "x": 1, "y": 4 },
+      "pins": { "A": 1, "K": 2 }
+    },
+    {
+      "id": "J1",
+      "type": "connector_2pin",
+      "label": "PWR",
+      "position": { "x": 10, "y": 1 },
+      "pins": { "VCC": 1, "GND": 2 }
+    }
+  ],
+  "nets": [
+    { "name": "VCC",  "connections": [["J1","VCC"], ["U1","VCC"],  ["U1","RESET"], ["R1","A"]] },
+    { "name": "GND",  "connections": [["J1","GND"], ["U1","GND"],  ["C1","-"],     ["C2","B"]] },
+    { "name": "DISCH","connections": [["U1","DISCHARGE"], ["R2","B"], ["U1","THRESHOLD"], ["U1","TRIGGER"]] },
+    { "name": "RC",   "connections": [["R1","B"], ["R2","A"]] },
+    { "name": "RC2",  "connections": [["R2","B"], ["C1","+"]] },
+    { "name": "CTRL", "connections": [["U1","CONTROL"], ["C2","A"]] },
+    { "name": "OUT",  "connections": [["U1","OUTPUT"], ["R3","A"]] },
+    { "name": "LED",  "connections": [["R3","B"], ["D1","A"]] },
+    { "name": "LEDS", "connections": [["D1","K"], ["J1","GND"]] }
+  ],
+  "board": {
+    "width": 12,
+    "height": 9,
+    "unit": "mm",
+    "grid": 1.0
+  }
+}

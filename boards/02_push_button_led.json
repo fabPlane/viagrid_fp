@@ -1,0 +1,53 @@
+{
+  "name": "Push-Button LED",
+  "description": "The simplest possible circuit board: press a momentary push-button to light an LED. Demonstrates current-limiting resistor selection and basic switch debounce with a small capacitor.",
+  "components": [
+    {
+      "id": "SW1",
+      "type": "tactile_switch",
+      "label": "PUSH",
+      "position": { "x": 4, "y": 3 },
+      "pins": { "A": 1, "B": 2 }
+    },
+    {
+      "id": "R1",
+      "type": "resistor",
+      "label": "330Ω",
+      "position": { "x": 6, "y": 3 },
+      "pins": { "A": 1, "B": 2 }
+    },
+    {
+      "id": "C1",
+      "type": "capacitor_ceramic",
+      "label": "100nF",
+      "position": { "x": 4, "y": 5 },
+      "pins": { "A": 1, "B": 2 }
+    },
+    {
+      "id": "D1",
+      "type": "led",
+      "label": "LED GREEN",
+      "position": { "x": 8, "y": 3 },
+      "pins": { "A": 1, "K": 2 }
+    },
+    {
+      "id": "J1",
+      "type": "connector_2pin",
+      "label": "PWR",
+      "position": { "x": 2, "y": 1 },
+      "pins": { "VCC": 1, "GND": 2 }
+    }
+  ],
+  "nets": [
+    { "name": "VCC",  "connections": [["J1","VCC"],  ["SW1","A"]] },
+    { "name": "GND",  "connections": [["J1","GND"],  ["D1","K"], ["C1","B"]] },
+    { "name": "SW_OUT","connections": [["SW1","B"], ["R1","A"], ["C1","A"]] },
+    { "name": "LED_A","connections": [["R1","B"], ["D1","A"]] }
+  ],
+  "board": {
+    "width": 10,
+    "height": 7,
+    "unit": "mm",
+    "grid": 1.0
+  }
+}
