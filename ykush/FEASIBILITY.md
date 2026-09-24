@@ -24,9 +24,9 @@ Taken from the `opulo-inc/viagrid` 9055 KiCad template:
 |---|---|
 | Layers | 2 (F.Cu / B.Cu), 1.6 mm FR4 |
 | Usable blank | 90 x 55 mm, 4 mounting holes, fits a Hammond 1591XXB enclosure |
-| Via grid | 180 vias at **2.00 mm pitch** |
+| Vias | 180, at **2.00 mm pitch**, but only in a ring around the edge plus four small clusters and four "+" crosses. The middle of the board has none (see `pcb/LAYOUT.md`) |
 | Via | **0.2 mm drill**, 1.0 mm pad in the template |
-| New vias | **None.** You can only change layers where a grid via already exists |
+| New vias | **None.** You can only change layers where one of those vias already exists |
 | Through-hole | Not provided. You drill and mill any THT holes yourself, and they are **not plated** |
 
 ## YKUSH architecture (from public info and the `ykushcmd` source)

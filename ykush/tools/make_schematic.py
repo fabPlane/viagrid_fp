@@ -15,6 +15,7 @@ R0603 = 'Resistor_SMD:R_0603_1608Metric'
 C0603 = 'Capacitor_SMD:C_0603_1608Metric'
 C0805 = 'Capacitor_SMD:C_0805_2012Metric'
 CAP_EL = 'Capacitor_SMD:CP_Elec_6.3x7.7'
+C1206 = 'Capacitor_SMD:C_1206_3216Metric'
 LED0805 = 'LED_SMD:LED_0805_2012Metric'  # 0805 green is a JLC Basic part (C2297)
 
 sh = Sheet('ykush_vg', 'YKUSH-VG: 3-port switchable USB 2.0 hub on Viagrid 9055')
@@ -89,11 +90,14 @@ def column(x, y0, dy=20.32):
 # ================================================================= UPSTREAM
 sh.text('UPSTREAM USB-C (device/UFP) + ESD', (20, 20))
 sh.add('J1', 'Connector:USB_C_Receptacle_USB2.0_16P', 'USB-C 16P', (40, 60),
-       {'A1': 'GND', 'A4': 'VBUS_UP', 'A5': 'CC1', 'A6': 'UP_DP', 'A7': 'UP_DM',
+       {'A1': 'GND', 'A4': 'VBUS_UP', 'A5': 'CC1', 'A6': 'UP_DP_A', 'A7': 'UP_DM',
         'B5': 'CC2', 'SH': 'GND', 'A9': 'VBUS_UP', 'A12': 'GND', 'B1': 'GND', 'B4': 'VBUS_UP',
         'B6': 'UP_DP', 'B7': 'UP_DM', 'B9': 'VBUS_UP', 'B12': 'GND'},
        'Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12', nc=('A8', 'B8'))
 col = column(95, 40)
+# USB-C D+ pads A6/B6 are interleaved with D- (B6 A7 A6 B7). Viagrid has no via next to the
+# connector, so a 0R jumper carries D+ from A6 over the A7 (D-) trace.
+sh.add('JP1', 'Device:R', '0R', (80, 100), {'1': 'UP_DP_A', '2': 'UP_DP'}, R0603)
 R('5.1k', 'CC1', 'GND', next(col))
 R('5.1k', 'CC2', 'GND', next(col))
 C('10uF', 'VBUS_UP', 'GND', next(col))
@@ -118,15 +122,19 @@ sh.flag('EXT_5V_IN', (70, 185))
 sh.flag('+5V_PORT', (130, 185))
 
 # ================================================================= HUB
-sh.text('HUB: Terminus FE1.1s (SSOP-28, 0.635mm). No crystal load caps (internal).', (190, 20))
+sh.text('HUB: Terminus FE1.1s (SSOP-28, 0.635mm). No crystal load caps (internal). DRV/LED pins unused.', (190, 20))
 sh.add('U1', 'Interface_USB:FE1.1s', 'FE1.1s', (240, 75),
        {'1': 'GND', '2': 'XOUT', '3': 'XIN',
-        '4': 'MCU_DM', '5': 'MCU_DP',   # port 4 -> CH552 (control HID device)
-        '6': 'P3_DM', '7': 'P3_DP', '8': 'P2_DM', '9': 'P2_DP', '10': 'P1_DM', '11': 'P1_DP',
+        '4': 'MCU_DM', '5': 'MCU_DP',
+        # Port order along the SSOP matches the layout so no USB pair has to cross another
+        # (see pcb/LAYOUT.md): hub port 4 -> CH552G, 3 -> J2 (left), 2 -> J3, 1 -> J4 (right).
+        '6': 'P1_DM', '7': 'P1_DP', '8': 'P2_DM', '9': 'P2_DP', '10': 'P3_DM', '11': 'P3_DP',
         '12': '+1V8', '13': '+3V3', '14': 'REXT', '15': 'UP_DM', '16': 'UP_DP',
-        '17': 'HUB_RSTJ', '18': 'VBUSM', '19': 'BUSJ', '20': 'VBUS_UP', '21': '+3V3',
-        '22': 'HUB_DRV', '26': '+3V3', '28': '+1V8'},
-       'Package_SO:SSOP-28_3.9x9.9mm_P0.635mm', nc=('23', '24', '25', '27'))
+        # XRSTJ (17) and BUSJ (19) sit next to VBUSM (18): all three take the divided VBUS
+        # (~3.2 V) = reset released + self-powered whenever the host supplies VBUS.
+        '17': 'VBUSM', '18': 'VBUSM', '19': 'VBUSM', '20': 'VBUS_UP', '21': '+3V3',
+        '26': '+3V3', '28': '+1V8'},
+       'Package_SO:SSOP-28_3.9x9.9mm_P0.635mm', nc=('22', '23', '24', '25', '27'))
 sh.add('Y1', 'Device:Crystal_GND24', '12MHz', (240, 125),
        {'1': 'XIN', '3': 'XOUT', '2': 'GND', '4': 'GND'}, 'Crystal:Crystal_SMD_3225-4Pin_3.2x2.5mm')
 col = column(300, 35)
@@ -137,25 +145,18 @@ C('10uF', '+1V8', 'GND', next(col))       # VD18_O
 C('100nF', '+1V8', 'GND', next(col))      # VD18
 R('2.7k 1%', 'REXT', 'GND', next(col))
 col = column(330, 35)
-R('100k', '+3V3', 'HUB_RSTJ', next(col))
-C('100nF', 'HUB_RSTJ', 'GND', next(col))
-R('47k', 'VBUS_UP', 'VBUSM', next(col))
+R('56k', 'VBUS_UP', 'VBUSM', next(col))
 R('100k', 'VBUSM', 'GND', next(col))
 C('100nF', 'VBUSM', 'GND', next(col))
-R('100k', '+3V3', 'BUSJ', next(col))      # self-powered
-R('330', 'HUB_DRV', 'LED_HUB', next(col))
-LED('LED_HUB', 'GND', next(col))
 
 # ================================================================= MCU
 sh.text('CONTROL: WCH CH552G on hub port 4, always powered from VBUS_UP.', (190, 205))
 sh.text('Boot: hold SW1 while plugging in, or jump to bootloader from firmware.', (190, 211), 1.4)
 sh.add('U3', 'ykush_vg:CH552G', 'CH552G', (250, 250),
-       {'12': 'MCU_DP', '13': 'MCU_DM', '6': 'MCU_RST', '15': 'VBUS_UP', '16': 'V33_MCU', '14': 'GND',
-        '1': 'LED_STAT', '2': 'MCU_P14', '3': 'MCU_P15', '4': 'MCU_P16', '5': 'MCU_P17',
-        '7': 'MCU_TXD', '9': 'EN1', '10': 'EN2', '11': 'EN3'},
-       nc=('8',))
+       {'12': 'MCU_DP', '13': 'MCU_DM', '15': 'VBUS_UP', '16': 'V33_MCU', '14': 'GND',
+        '1': 'LED_STAT', '9': 'EN1', '10': 'EN2', '11': 'EN3'},
+       nc=('2', '3', '4', '5', '6', '7', '8'))  # RST has an internal pull-down
 col = column(310, 230)
-C('100nF', 'VBUS_UP', 'GND', next(col))
 C('10uF', 'VBUS_UP', 'GND', next(col))
 C('100nF', 'V33_MCU', 'GND', next(col))
 sh.add('SW1', 'Switch:SW_Push', 'BOOT', next(col), {'1': 'V33_MCU', '2': 'BOOT_R'},
@@ -164,13 +165,8 @@ R('10k', 'BOOT_R', 'MCU_DP', next(col))
 col = column(340, 230)
 R('1k', 'LED_STAT', 'LED_STAT_A', next(col))
 LED('LED_STAT_A', 'GND', next(col))
-sh.add('J6', 'Connector_Generic:Conn_01x08', 'PROG/DEBUG', (250, 300),
-       {'1': 'VBUS_UP', '2': 'GND', '3': 'MCU_RST', '4': 'MCU_P14', '5': 'MCU_P15',
-        '6': 'MCU_P16', '7': 'MCU_P17', '8': 'MCU_TXD'},
-       'Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical', dnp=True)
-
 # ================================================================= PORTS
-sh.text('DOWNSTREAM PORTS: SY6280AAC per port, I_LIM = 6800/R_SET (10k -> ~0.68 A)', (390, 20))
+sh.text('DOWNSTREAM PORTS: SY6280AAC per port, I_LIM = 6800/R_SET (10k -> ~0.68 A); 22uF + 10uF per port', (390, 20))
 for i in (1, 2, 3):
     y = 30 + (i - 1) * 85
     vb = f'VBUS_P{i}'
@@ -179,13 +175,13 @@ for i in (1, 2, 3):
     R('10k', f'ISET{i}', 'GND', (400, y + 50))
     R('100k', f'EN{i}', 'GND', (415, y + 50))    # keep port off while MCU boots
     C('10uF', '+5V_PORT', 'GND', (430, y + 50))
-    C('220uF', vb, 'GND', (460, y + 50), fp=CAP_EL)
+    C('22uF', vb, 'GND', (460, y + 50), fp=C1206)   # per-port bulk (one 220uF on +5V_PORT)
     C('10uF', vb, 'GND', (475, y + 50))
     R('1k', vb, f'LED_P{i}', (490, y + 50))
     LED(f'LED_P{i}', 'GND', (505, y + 50))
     sh.add(f'J{i + 1}', 'Connector:USB_A', 'USB-A port', (540, y + 20),
            {'1': vb, '2': f'P{i}_DM', '3': f'P{i}_DP', '4': 'GND', 'SH': 'GND'},
-           'Connector_USB:USB_A_Molex_67643_Horizontal')
+           'Connector_USB:USB_A_TE_292303-7_Horizontal')
     sh.add(ref('U'), 'Power_Protection:USBLC6-2SC6', 'USBLC6-2SC6', (480, y + 15),
            {'1': f'P{i}_DP', '6': f'P{i}_DP', '3': f'P{i}_DM', '4': f'P{i}_DM', '5': vb, '2': 'GND'},
            'Package_TO_SOT_SMD:SOT-23-6')

@@ -1,0 +1,194 @@
+"""Build the YKUSH-VG PCB on a Viagrid 9055 blank with KiCad 10's pcbnew API.
+
+    PYTHONPATH=/opt/kicad10/lib/python3/dist-packages python3 build_pcb.py [--no-route]
+
+Steps: outline + Viagrid vias -> footprints from the schematic netlist -> placement
+(placement.py) -> routing (router.py, vias only at Viagrid sites) -> GND pours -> save.
+"""
+import json
+import os
+import subprocess
+import sys
+import tempfile
+
+import pcbnew
+
+from sexpr import parse, find, find1
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.join(HERE, '..')
+SCH = os.path.join(ROOT, 'kicad', 'ykush_vg.kicad_sch')
+OUT = os.path.join(ROOT, 'kicad', 'ykush_vg.kicad_pcb')
+FPDIR = os.environ.get('KICAD10_FOOTPRINT_DIR', '/opt/kicad10/share/kicad/footprints')
+CLI = os.environ.get('KICAD_CLI', '/opt/kicad10/bin/kicad-cli')
+
+VG = json.load(open(os.path.join(ROOT, 'pcb', 'viagrid_9055.json')))
+X0, Y0, X1, Y1 = VG['board_outline']
+
+# Design rules (laser / etch on Viagrid). Grid-via copper is trimmed to VIA_D.
+VIA_D, VIA_DRILL = 0.6, 0.2
+CLEARANCE = 0.15
+TRACK = 0.25
+
+mm = pcbnew.FromMM
+
+
+def P(x, y):
+    """Board-relative mm (origin = top-left of the 90x55 blank) -> VECTOR2I."""
+    return pcbnew.VECTOR2I(mm(X0 + x), mm(Y0 + y))
+
+
+def netlist():
+    """Components and nets straight from the schematic via kicad-cli."""
+    with tempfile.TemporaryDirectory() as td:
+        f = os.path.join(td, 'n.net')
+        subprocess.run([CLI, 'sch', 'export', 'netlist', '--format', 'kicadsexpr', '-o', f, SCH],
+                       check=True, capture_output=True)
+        n = parse(open(f).read())
+    comps = {}
+    for c in find(find1(n, 'components'), 'comp'):
+        ref = find1(c, 'ref')[1]
+        comps[ref] = dict(value=find1(c, 'value')[1], footprint=find1(c, 'footprint')[1],
+                          uuid=find1(c, 'tstamps')[1], pads={},
+                          dnp=any(p[1] == 'dnp' for p in find(c, 'property')))
+    for net in find(find1(n, 'nets'), 'net'):
+        name = find1(net, 'name')[1].lstrip('/')
+        for node in find(net, 'node'):
+            r, pin = find1(node, 'ref')[1], find1(node, 'pin')[1]
+            if r in comps:
+                comps[r]['pads'][pin] = name
+    return comps
+
+
+def new_board():
+    b = pcbnew.BOARD()
+    b.SetCopperLayerCount(2)
+    ds = b.GetDesignSettings()
+    ds.m_MinClearance = mm(CLEARANCE)
+    ds.m_TrackMinWidth = mm(0.2)
+    ds.m_ViasMinSize = mm(VIA_D)
+    ds.m_MinThroughDrill = mm(VIA_DRILL)
+    ds.m_CopperEdgeClearance = mm(0.3)
+    nc = ds.m_NetSettings.GetDefaultNetclass()
+    nc.SetClearance(mm(CLEARANCE))
+    nc.SetTrackWidth(mm(TRACK))
+    nc.SetViaDiameter(mm(VIA_D))
+    nc.SetViaDrill(mm(VIA_DRILL))
+    # outline
+    pts = [(0, 0), (X1 - X0, 0), (X1 - X0, Y1 - Y0), (0, Y1 - Y0)]
+    for i in range(4):
+        s = pcbnew.PCB_SHAPE(b)
+        s.SetShape(pcbnew.SHAPE_T_SEGMENT)
+        s.SetStart(P(*pts[i]))
+        s.SetEnd(P(*pts[(i + 1) % 4]))
+        s.SetLayer(pcbnew.Edge_Cuts)
+        s.SetWidth(mm(0.05))
+        b.Add(s)
+    return b
+
+
+def net(b, name):
+    n = b.FindNet(name)
+    if n is None:
+        n = pcbnew.NETINFO_ITEM(b, name)
+        b.Add(n)
+    return n
+
+
+def add_via(b, x, y, netname, d=VIA_D, drill=VIA_DRILL, abs_coords=False):
+    v = pcbnew.PCB_VIA(b)
+    v.SetPosition(pcbnew.VECTOR2I(mm(x), mm(y)) if abs_coords else P(x, y))
+    v.SetWidth(mm(d))
+    v.SetDrill(mm(drill))
+    v.SetViaType(pcbnew.VIATYPE_THROUGH)
+    v.SetNet(net(b, netname))
+    v.SetIsFree(True)
+    b.Add(v)
+    return v
+
+
+def load_fp(libid):
+    lib, name = libid.split(':')
+    fp = pcbnew.FootprintLoad(os.path.join(FPDIR, lib + '.pretty'), name)
+    if fp is None:
+        raise RuntimeError('footprint not found: ' + libid)
+    fp.SetFPID(pcbnew.LIB_ID(lib, name))
+    return fp
+
+
+def place_footprints(b, comps, placement):
+    fps = {}
+    for ref, c in sorted(comps.items()):
+        if ref not in placement:
+            raise KeyError(f'no placement for {ref}')
+        x, y, rot = placement[ref][:3]
+        side = placement[ref][3] if len(placement[ref]) > 3 else 'F'
+        fp = load_fp(c['footprint'])
+        fp.SetReference(ref)
+        fp.SetValue(c['value'])
+        fp.SetPath(pcbnew.KIID_PATH('/' + c['uuid']))
+        b.Add(fp)
+        if side == 'B':
+            fp.Flip(fp.GetPosition(), pcbnew.FLIP_DIRECTION_LEFT_RIGHT)
+        fp.SetOrientationDegrees(rot)
+        fp.SetPosition(P(x, y))
+        if c['dnp']:
+            fp.SetDNP(True)
+        for pad in fp.Pads():
+            n = c['pads'].get(pad.GetNumber())
+            if n:
+                pad.SetNet(net(b, n))
+        fps[ref] = fp
+    return fps
+
+
+def viagrid(b, used=None):
+    """All 180 Viagrid vias (unused ones on GND for stitching) + plated mounting holes."""
+    used = used or {}
+    vias = []
+    for x, y in VG['grid_vias']:
+        vias.append(add_via(b, x, y, used.get((x, y), 'GND'), abs_coords=True))
+    for x, y in VG['mount_holes']:
+        add_via(b, x, y, 'GND', d=VG['mount_hole']['pad'], drill=VG['mount_hole']['drill'], abs_coords=True)
+    return vias
+
+
+def gnd_pours(b):
+    for layer in (pcbnew.F_Cu, pcbnew.B_Cu):
+        z = pcbnew.ZONE(b)
+        z.SetLayer(layer)
+        z.SetNet(net(b, 'GND'))
+        z.SetLocalClearance(mm(0.2))
+        z.SetMinThickness(mm(0.2))
+        z.SetPadConnection(pcbnew.ZONE_CONNECTION_THERMAL)
+        z.SetThermalReliefGap(mm(0.25))
+        z.SetThermalReliefSpokeWidth(mm(0.3))
+        z.SetIslandRemovalMode(pcbnew.ISLAND_REMOVAL_MODE_ALWAYS)
+        ol = z.Outline()
+        ol.NewOutline()
+        for x, y in [(0.2, 0.2), (X1 - X0 - 0.2, 0.2), (X1 - X0 - 0.2, Y1 - Y0 - 0.2), (0.2, Y1 - Y0 - 0.2)]:
+            ol.Append(mm(X0 + x), mm(Y0 + y))
+        b.Add(z)
+    filler = pcbnew.ZONE_FILLER(b)
+    filler.Fill(b.Zones())
+
+
+def main():
+    import placement
+    route = '--no-route' not in sys.argv
+    b = new_board()
+    comps = netlist()
+    fps = place_footprints(b, comps, placement.PLACE)
+    if route:
+        import router
+        router.route_board(b, fps, VG, P)
+    else:
+        viagrid(b)
+    gnd_pours(b)
+    b.BuildConnectivity()
+    pcbnew.SaveBoard(OUT, b)
+    print('saved', OUT)
+
+
+if __name__ == '__main__':
+    main()
