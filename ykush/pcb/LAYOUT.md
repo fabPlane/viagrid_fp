@@ -65,6 +65,8 @@ sits, has none.
    crystal.** These nets link the two pin rows, and routing them around the outside would cross
    the USB pairs. The decoupling for pins 12-13 and the REXT resistor sit directly below those
    pins.
+   The port ESDs (USBLC6-2SC6) are rotated 270° so that their D-/D+ pin columns line up with
+   the socket's D- (left) and D+ (right) pins, and the pair runs straight through them.
 6. **The CH552G's link is Full-Speed (12 Mbit/s).** It is the only USB link allowed to hop to
    B.Cu through Viagrid vias. The four 480 Mbit/s pairs stay on F.Cu.
 7. **Port 3's support parts sit right of its socket.** The lower-right cluster is on its left.
