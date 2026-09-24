@@ -42,6 +42,7 @@ WIDTH = {
     'VBUS_P1': 0.6, 'VBUS_P2': 0.6, 'VBUS_P3': 0.6,
 }
 DEFAULT_W = 0.25
+SLOW_NETS = {'EN1', 'EN2', 'EN3', 'LED_STAT', 'LED_STAT_A', 'BOOT_R'}
 
 # Pads connected inside the part (flow-through ESD). Routed as one target; build_pcb writes
 # them into the footprint as KiCad jumper_pad_groups so DRC agrees.
@@ -139,6 +140,22 @@ class Grid:
 
     def put(self, layer, mask, code):
         self.own[layer][mask] = code
+
+
+class _PadGroup:
+    """Pads joined inside the part, routed as one target."""
+    def __init__(self, members):
+        self.members = members          # [(pad, masks_by_layer)]
+
+    def member_at(self, cell):
+        layer, iy, ix = cell
+        for pad, masks in self.members:
+            if layer in masks and masks[layer][iy, ix]:
+                return pad
+        return self.members[0][0]
+
+    def __getattr__(self, name):        # GetPosition, GetSize, ... of the first member
+        return getattr(self.members[0][0], name)
 
 
 def key(name):
@@ -249,7 +266,8 @@ class Router:
                 eb = self.padentry.get((fp.GetReference(), b_))
                 n = ea and ea[0].GetNetname()
                 if ea and eb and n in self.pads:
-                    merged = (ea[0], ea[1], {L_: ea[2][L_] | eb[2][L_] for L_ in ea[2]})
+                    grp = _PadGroup([(ea[0], ea[2]), (eb[0], eb[2])])
+                    merged = (grp, ea[1], {L_: ea[2][L_] | eb[2][L_] for L_ in ea[2]})
                     self.pads[n] = [e for e in self.pads[n] if e not in (ea, eb)] + [merged]
         for x, y in vg['grid_vias']:
             ix, iy = g.cell(x, y)
@@ -327,7 +345,8 @@ class Router:
         right around pads of nets that are still unrouted (keep their escapes open)."""
         g = self.g
         m = np.ones((2, g.H, g.W), np.float32)
-        m[1] *= BCU_MULT
+        # slow DC control lines may use the bottom layer freely; everything else pays extra
+        m[1] *= 1.0 if key(name) in SLOW_NETS else BCU_MULT
         esc = np.zeros((2, g.H, g.W), bool)
         for other in self.pending:
             if other == name:
@@ -431,7 +450,10 @@ class Router:
             else:
                 run.append(p)
         segs += self._runsegs(run, width)
-        # tie the path start to the pad centre (stays inside the pad)
+        # tie the path start to the pad centre (stays inside the pad). For a jumper group, use
+        # the member pad the path actually starts in.
+        if isinstance(start_pad, _PadGroup):
+            start_pad = start_pad.member_at(path[0])
         c = start_pad.GetPosition()
         first = pts[0]
         segs.insert(0, (first[0], (tomm(c.x), tomm(c.y)), (first[1], first[2]), min(width, self._pad_min(start_pad))))
@@ -633,7 +655,7 @@ def route_board(board, fps, vg, P):
     used = {}
     for vi, n in r.used_vias.items():
         x, y = r.g.vias[vi][2:]
-        used[(x, y)] = n
+        used[(x, y)] = r.netname[r.code(n)]      # GND_TIE:* -> /GND
     build_pcb.viagrid(board, used)
     return r
 
