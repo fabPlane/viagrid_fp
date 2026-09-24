@@ -180,15 +180,12 @@ def gnd_pours(b):
 def isolated_gnd_pads(b):
     """GND pads that the filled pours do not tie to the main ground (via DRC)."""
     import json
-    tmp = OUT + '.tmp.kicad_pcb'
-    pcbnew.SaveBoard(tmp, b)
     with tempfile.TemporaryDirectory() as td:
+        tmp = os.path.join(td, 'check.kicad_pcb')
+        pcbnew.SaveBoard(tmp, b)
         rep = os.path.join(td, 'drc.json')
         subprocess.run([CLI, 'pcb', 'drc', '--format', 'json', '-o', rep, tmp], capture_output=True)
         d = json.load(open(rep))
-    for f in (tmp, tmp.replace('.kicad_pcb', '.kicad_prl'), tmp.replace('.kicad_pcb', '.kicad_pro')):
-        if os.path.exists(f) and f != OUT:
-            os.remove(f)
     items = set()
     for u in d.get('unconnected_items', []):
         for it in u.get('items', []):
