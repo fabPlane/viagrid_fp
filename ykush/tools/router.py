@@ -119,6 +119,11 @@ class Grid:
         self.own[layer][mask] = code
 
 
+def key(name):
+    """'/NAME' (KiCad schematic net) -> 'NAME' for the tables above."""
+    return name.lstrip('/')
+
+
 def pad_polys(pad, layer):
     ps = pcbnew.SHAPE_POLY_SET()
     pad.TransformShapeToPolygon(ps, layer, 0, mm(0.005), pcbnew.ERROR_INSIDE)
@@ -177,7 +182,7 @@ class Router:
                     hole = g._mask_circle(tomm(c.x), tomm(c.y), r)
                     for layer in (0, 1):
                         g.own[layer][hole & (g.own[layer] == FREE)] = HARD
-                if name and name != 'GND' and attr != pcbnew.PAD_ATTRIB_NPTH:
+                if name and key(name) != 'GND' and attr != pcbnew.PAD_ATTRIB_NPTH:
                     # THT holes on a Viagrid are not plated: reachable from B.Cu only
                     access = (1,) if attr == pcbnew.PAD_ATTRIB_PTH else L
                     self.pads.setdefault(name, []).append((pad, access, masks))
@@ -190,7 +195,7 @@ class Router:
         for x, y in vg['mount_holes']:
             m = g._mask_circle(x, y, 2.25)
             for layer in (0, 1):
-                g.own[layer][m] = self.code('GND')
+                g.own[layer][m] = self.code('/GND')
 
     # --------------------------------------------------------------- routing one net
     def _blocked(self, code, hw):
@@ -414,8 +419,9 @@ class Router:
             xs = [tomm(p[0].GetPosition().x) for p in self.pads[n]]
             ys = [tomm(p[0].GetPosition().y) for p in self.pads[n]]
             span[n] = (max(xs) - min(xs)) + (max(ys) - min(ys))
-        return [n for n in PRIORITY if n in nets] + sorted(
-            [n for n in nets if n not in PRIORITY], key=lambda n: (-WIDTH.get(n, 0), span[n]))
+        byk = {key(n): n for n in nets}
+        return [byk[k] for k in PRIORITY if k in byk] + sorted(
+            [n for n in nets if key(n) not in PRIORITY], key=lambda n: (-WIDTH.get(key(n), 0), span[n]))
 
     def run(self, iters=int(os.environ.get("ROUTE_ITERS", "30"))):
         """Negotiated-congestion routing (PathFinder): other nets' copper is a cost, not a
@@ -436,7 +442,7 @@ class Router:
                 for m, r_ in routes.items():
                     if m != n:
                         others |= r_[2]
-                w = WIDTH.get(n, DEFAULT_W)
+                w = WIDTH.get(key(n), DEFAULT_W)
                 res = None
                 for ww in [w] + [x for x in FALLBACK_W if x < w]:
                     self._soft = (others, hist, pres, ww)
@@ -489,7 +495,7 @@ class Router:
         self.failed = []
         for n in redo:
             ok = False
-            for ww in [WIDTH.get(n, DEFAULT_W)] + [x for x in FALLBACK_W if x < WIDTH.get(n, DEFAULT_W)]:
+            for ww in [WIDTH.get(key(n), DEFAULT_W)] + [x for x in FALLBACK_W if x < WIDTH.get(key(n), DEFAULT_W)]:
                 save = (g.own.copy(), dict(g.via_net))
                 ok, segs, vias = self.route_net(n, ww)
                 if ok:
@@ -554,4 +560,52 @@ def route_board(board, fps, vg, P):
         x, y = r.g.vias[vi][2:]
         used[(x, y)] = n
     build_pcb.viagrid(board, used)
-    return failed
+    r.board_vias = used
+    return r
+
+
+def add_gnd_stubs(board, r, pads):
+    """Tie GND pads the pour cannot reach to the nearest free Viagrid via (which is on GND and
+    stitched to both pours)."""
+    import build_pcb
+    g = r.g
+    code = r.code(build_pcb.GND)
+    fps = {fp.GetReference(): fp for fp in board.GetFootprints()}
+    taken = set(r.used_vias)
+    for ref, num in pads:
+        pad = next((p for p in fps[ref].Pads() if p.GetNumber() == num), None)
+        if pad is None or not pad.IsOnLayer(pcbnew.F_Cu):
+            continue
+        for w in (0.3, 0.25, 0.2):
+            blk, usable = r._blocked(code, w / 2)
+            free = [vi for vi in usable if vi not in taken]
+            goal = np.zeros((2, g.H, g.W), bool)
+            for vi in free:
+                ix, iy = g.vias[vi][:2]
+                goal[0, iy, ix] = True
+            if not goal.any():
+                continue
+            heur = ndimage.distance_transform_edt(~goal[0]) * RES
+            m = np.zeros((g.H, g.W), bool)
+            for poly in pad_polys(pad, pcbnew.F_Cu):
+                m |= g._mask_poly(poly)
+            src = [(0, y, x) for y, x in zip(*np.nonzero(m & ~blk[0]))]
+            if not src:
+                continue
+            mult = np.ones((2, g.H, g.W), np.float32)
+            mult[1] = 50.0                                       # stay on F.Cu
+            path, n = r._astar(code, blk, [], src, goal, heur, mult)
+            if path is None:
+                continue
+            segs, _ = r._commit(path, code, w, pad)
+            for layer, a, b_, ww, c in segs:
+                t = pcbnew.PCB_TRACK(board)
+                t.SetStart(pcbnew.VECTOR2I(mm(a[0]), mm(a[1])))
+                t.SetEnd(pcbnew.VECTOR2I(mm(b_[0]), mm(b_[1])))
+                t.SetWidth(mm(ww))
+                t.SetLayer(pcbnew.F_Cu if layer == 0 else pcbnew.B_Cu)
+                t.SetNet(build_pcb.net(board, build_pcb.GND))
+                board.Add(t)
+            break
+        else:
+            print(f'   could not tie {ref}.{num} to GND')

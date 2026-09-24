@@ -11,9 +11,13 @@ import tempfile
 
 CLI = os.environ.get('KICAD_CLI', '/opt/kicad10/bin/kicad-cli')
 HERE = os.path.dirname(os.path.abspath(__file__))
-args = [a for a in sys.argv[1:] if not a.startswith('--')]
-brd = args[0] if args else os.path.join(HERE, '..', 'kicad', 'ykush_vg.kicad_pcb')
-detail = sys.argv[sys.argv.index('--details') + 1] if '--details' in sys.argv else None
+argv = sys.argv[1:]
+detail = None
+if '--details' in argv:
+    i = argv.index('--details')
+    detail = argv[i + 1]
+    del argv[i:i + 2]
+brd = argv[0] if argv else os.path.join(HERE, '..', 'kicad', 'ykush_vg.kicad_pcb')
 
 with tempfile.TemporaryDirectory() as td:
     out = os.path.join(td, 'drc.json')

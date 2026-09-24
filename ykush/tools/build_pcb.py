@@ -27,6 +27,7 @@ X0, Y0, X1, Y1 = VG['board_outline']
 
 # Design rules (laser / etch on Viagrid). Grid-via copper is trimmed to VIA_D.
 VIA_D, VIA_DRILL = 0.6, 0.2
+GND = '/GND'
 CLEARANCE = 0.15
 TRACK = 0.25
 
@@ -52,7 +53,7 @@ def netlist():
                           uuid=find1(c, 'tstamps')[1], pads={},
                           dnp=any(p[1] == 'dnp' for p in find(c, 'property')))
     for net in find(find1(n, 'nets'), 'net'):
-        name = find1(net, 'name')[1].lstrip('/')
+        name = find1(net, 'name')[1]         # keep KiCad's '/NAME' so schematic parity holds
         for node in find(net, 'node'):
             r, pin = find1(node, 'ref')[1], find1(node, 'pin')[1]
             if r in comps:
@@ -147,9 +148,9 @@ def viagrid(b, used=None):
     used = used or {}
     vias = []
     for x, y in VG['grid_vias']:
-        vias.append(add_via(b, x, y, used.get((x, y), 'GND'), abs_coords=True))
+        vias.append(add_via(b, x, y, used.get((x, y), GND), abs_coords=True))
     for x, y in VG['mount_holes']:
-        add_via(b, x, y, 'GND', d=VG['mount_hole']['pad'], drill=VG['mount_hole']['drill'], abs_coords=True)
+        add_via(b, x, y, GND, d=VG['mount_hole']['pad'], drill=VG['mount_hole']['drill'], abs_coords=True)
     return vias
 
 
@@ -157,7 +158,7 @@ def gnd_pours(b):
     for layer in (pcbnew.F_Cu, pcbnew.B_Cu):
         z = pcbnew.ZONE(b)
         z.SetLayer(layer)
-        z.SetNet(net(b, 'GND'))
+        z.SetNet(net(b, GND))
         z.SetLocalClearance(mm(0.2))
         z.SetMinThickness(mm(0.2))
         z.SetPadConnection(pcbnew.ZONE_CONNECTION_THERMAL)
@@ -173,6 +174,29 @@ def gnd_pours(b):
     filler.Fill(b.Zones())
 
 
+def isolated_gnd_pads(b):
+    """GND pads that the filled pours do not tie to the main ground (via DRC)."""
+    import json
+    tmp = OUT + '.tmp.kicad_pcb'
+    pcbnew.SaveBoard(tmp, b)
+    with tempfile.TemporaryDirectory() as td:
+        rep = os.path.join(td, 'drc.json')
+        subprocess.run([CLI, 'pcb', 'drc', '--format', 'json', '-o', rep, tmp], capture_output=True)
+        d = json.load(open(rep))
+    for f in (tmp, tmp.replace('.kicad_pcb', '.kicad_prl'), tmp.replace('.kicad_pcb', '.kicad_pro')):
+        if os.path.exists(f) and f != OUT:
+            os.remove(f)
+    pads = set()
+    for u in d.get('unconnected_items', []):
+        for it in u.get('items', []):
+            desc = it.get('description', '')
+            if desc.startswith('Pad') and '[/GND]' in desc and 'of ' in desc:
+                ref = desc.split(' of ')[1].split()[0]
+                num = desc.split()[1]
+                pads.add((ref, num))
+    return sorted(pads)
+
+
 def main():
     import placement
     route = '--no-route' not in sys.argv
@@ -181,13 +205,36 @@ def main():
     fps = place_footprints(b, comps, placement.PLACE)
     if route:
         import router
-        router.route_board(b, fps, VG, P)
+        r = router.route_board(b, fps, VG, P)
+        gnd_pours(b)
+        for _ in range(3):
+            iso = isolated_gnd_pads(b)
+            if not iso:
+                break
+            print(f'{len(iso)} GND pads cut off from the pour: adding stubs to Viagrid vias')
+            router.add_gnd_stubs(b, r, iso)
+            for z in list(b.Zones()):
+                b.Remove(z)
+            gnd_pours(b)
     else:
         viagrid(b)
-    gnd_pours(b)
+        gnd_pours(b)
     b.BuildConnectivity()
     pcbnew.SaveBoard(OUT, b)
+    tune_project_rules()
     print('saved', OUT)
+
+
+def tune_project_rules():
+    """A Viagrid blank has no silkscreen, so silk checks are noise; say so in the project."""
+    pro = OUT.replace('.kicad_pcb', '.kicad_pro')
+    d = json.load(open(pro))
+    sev = d['board']['design_settings'].setdefault('rule_severities', {})
+    for k in ('silk_edge_clearance', 'silk_over_copper', 'silk_overlap'):
+        sev[k] = 'ignore'
+    with open(pro, 'w') as f:
+        json.dump(d, f, indent=2)
+        f.write('\n')
 
 
 if __name__ == '__main__':
