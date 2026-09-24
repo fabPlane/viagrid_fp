@@ -153,8 +153,9 @@ sh.text('CONTROL: WCH CH552G on hub port 4, always powered from VBUS_UP.', (190,
 sh.text('Boot: hold SW1 while plugging in, or jump to bootloader from firmware.', (190, 211), 1.4)
 sh.add('U2', 'ykush_vg:CH552G', 'CH552G', (250, 250),
        {'12': 'MCU_DP', '13': 'MCU_DM', '15': 'VBUS_UP', '16': 'V33_MCU', '14': 'GND',
-        '1': 'LED_STAT', '9': 'EN1', '10': 'EN2', '11': 'EN3'},
-       nc=('2', '3', '4', '5', '6', '7', '8'))  # RST has an internal pull-down
+        # EN1 on P1.4 (pin 2): next to a Viagrid cluster on the board. Pin choice is firmware's.
+        '1': 'LED_STAT', '2': 'EN1', '10': 'EN2', '11': 'EN3'},
+       nc=('3', '4', '5', '6', '7', '8', '9'))  # RST has an internal pull-down
 col = column(310, 230)
 C('10uF', 'VBUS_UP', 'GND', next(col))
 C('100nF', 'V33_MCU', 'GND', next(col))

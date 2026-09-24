@@ -58,6 +58,7 @@ GND_TIES = [('U1', '1', 'Y1', '2'),      # hub VSS -> crystal GND
             ('U6', '2', 'J3', '4'),
             ('U8', '2', 'J4', '4')]
 WIDTH.update({f'GND_TIE:{a}.{b}': 0.3 for a, b, _, _ in GND_TIES})
+WIDTH['GND_NET'] = 0.3
 FALLBACK_W = (0.3, 0.25, 0.2)
 
 # routing order: nets that must use the gap under the hub, then USB, then power and the rest
@@ -65,7 +66,7 @@ FALLBACK_W = (0.3, 0.25, 0.2)
 PRIORITY = [f'GND_TIE:{a}.{b}' for a, b, _, _ in GND_TIES] + ['XIN', 'XOUT', 'REXT', '+1V8', '+3V3', 'VBUSM',          # through the gap under the hub
             'UP_DM_A', 'UP_DP', 'UP_DM', 'CC1', 'CC2',                # USB-C
             'P1_DP', 'P1_DM', 'P2_DP', 'P2_DM', 'P3_DP', 'P3_DM',      # High-Speed port pairs
-            'VBUS_UP', 'MCU_DP', 'MCU_DM']                            # FS link may use vias
+            'GND_NET', 'VBUS_UP', 'MCU_DP', 'MCU_DM']                            # FS link may use vias
 
 mm = pcbnew.FromMM
 tomm = pcbnew.ToMM
@@ -188,6 +189,13 @@ class Router:
         self.padentry = {}
         self._load(vg)
         gcode = self.code('/GND')
+        # GND is routed too: every SMD GND pad gets copper to the nearest Viagrid via (tied to
+        # the B.Cu plane) or to GND copper already connected. The pours then fill around it.
+        gpads = [e for (ref, num), e in self.padentry.items()
+                 if key(e[0].GetNetname()) == 'GND' and e[1] == (0,)]
+        if gpads:
+            self.pads['GND_NET'] = gpads
+            self.netcode['GND_NET'] = gcode
         for a, pa, b_, pb in GND_TIES:
             ea, eb = self.padentry.get((a, pa)), self.padentry.get((b_, pb))
             if ea and eb:
@@ -386,11 +394,20 @@ class Router:
         # start from the biggest pad
         order = sorted(range(len(pads)), key=lambda i: -pads[i][0].GetSize(pcbnew.F_Cu).x * pads[i][0].GetSize(pcbnew.F_Cu).y)
         tree = np.zeros((2, g.H, g.W), bool)
-        first = pads[order[0]]
-        for layer, m in first[2].items():
-            if layer in first[1]:
-                tree[layer] |= m
-        todo = [pads[i] for i in order[1:]]
+        if name == 'GND_NET':
+            # grow from every via GND may use (free or already GND)
+            for vi, v in enumerate(g.vias):
+                if g.via_net.get(vi) in (None, code):
+                    m = g._mask_circle(v[2], v[3], VIA_R)
+                    tree[0] |= m
+                    tree[1] |= m
+            todo = list(pads)
+        else:
+            first = pads[order[0]]
+            for layer, m in first[2].items():
+                if layer in first[1]:
+                    tree[layer] |= m
+            todo = [pads[i] for i in order[1:]]
         new_tracks, new_vias = [], []
         self.last_cells = []
         while todo:
@@ -689,6 +706,13 @@ def add_gnd_stubs(board, r, items):
             if layer == 0:
                 outlines = [(m, i) for i, m in enumerate(ol)]
     taken = set(r.used_vias)
+    # F.Cu pour islands with no GND via inside are not tied to the B.Cu plane
+    gvias = [(tomm(v.GetPosition().x), tomm(v.GetPosition().y)) for v in board.GetTracks()
+             if v.GetClass() == 'PCB_VIA' and key(v.GetNetname()) == 'GND']
+    for m, _ in outlines[1:]:
+        if not any(m[g.cell(x, y)[1], g.cell(x, y)[0]] for x, y in gvias):
+            items = list(items) + [('island', m)]
+    items = [i for i in items if i[0] != 'zone']
     for it in items:
         if it[0] == 'pad':
             pad = next((p for p in fps[it[1]].Pads() if p.GetNumber() == it[2]), None)
@@ -699,11 +723,9 @@ def add_gnd_stubs(board, r, items):
                 srcmask |= g._mask_poly(poly)
             label, tie = f'{it[1]}.{it[2]}', pad
         else:
-            ix, iy = g.cell(it[1], it[2])
-            srcmask = next((m for m, _ in outlines[1:] if m[max(iy - 3, 0):iy + 4, max(ix - 3, 0):ix + 4].any()), None)
-            if srcmask is None:
-                continue
-            label, tie = f'pour island at ({it[1] - g.x0:.1f}, {it[2] - g.y0:.1f})', None
+            srcmask = it[1]
+            ys, xs = np.nonzero(srcmask)
+            label, tie = f'pour island near ({xs.mean() * RES:.1f}, {ys.mean() * RES:.1f})', None
         done = False
         for w in (0.3, 0.25, 0.2):
             blk, usable = r._blocked(code, w / 2)
