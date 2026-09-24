@@ -1,0 +1,117 @@
+{
+  "name": "Temperature & Humidity Sensor Node",
+  "description": "A self-contained sensor node using the DHT22 (or SHT31) for temperature and humidity, an ESP8266 (Wemos D1 Mini) for Wi-Fi data logging, and a 18650 LiPo cell with TP4056 charging circuit and a 3.3 V LDO. Shows sensor interfacing, pull-up resistors, battery management, and low-power design.",
+  "components": [
+    {
+      "id": "U1",
+      "type": "wemos_d1_mini",
+      "label": "ESP8266",
+      "position": { "x": 6, "y": 5 },
+      "pins": {
+        "RST": 1, "A0": 2, "D0": 3, "D5": 4, "D6": 5,
+        "D7": 6, "D8": 7, "3V3": 8, "GND": 9,
+        "D4": 10, "D3": 11, "D2": 12, "D1": 13,
+        "TX": 14, "RX": 15, "5V": 16
+      }
+    },
+    {
+      "id": "U2",
+      "type": "dht22",
+      "label": "DHT22",
+      "position": { "x": 10, "y": 3 },
+      "pins": { "VDD": 1, "DATA": 2, "NC": 3, "GND": 4 }
+    },
+    {
+      "id": "U3",
+      "type": "tp4056_lipo_charger",
+      "label": "TP4056",
+      "position": { "x": 2, "y": 3 },
+      "pins": {
+        "TEMP": 1, "PROG": 2, "GND": 3, "VCC": 4,
+        "BAT": 5, "CHRG": 6, "STDBY": 7
+      }
+    },
+    {
+      "id": "U4",
+      "type": "ldo_3v3_xc6206",
+      "label": "XC6206 3V3",
+      "position": { "x": 4, "y": 5 },
+      "pins": { "VIN": 1, "GND": 2, "VOUT": 3 }
+    },
+    {
+      "id": "J1",
+      "type": "usb_micro_b",
+      "label": "USB CHARGE",
+      "position": { "x": 1, "y": 1 },
+      "pins": { "VBUS": 1, "GND": 2, "D+": 3, "D-": 4 }
+    },
+    {
+      "id": "J2",
+      "type": "connector_2pin",
+      "label": "LIPO CELL",
+      "position": { "x": 2, "y": 7 },
+      "pins": { "BAT+": 1, "BAT-": 2 }
+    },
+    {
+      "id": "R1",
+      "type": "resistor",
+      "label": "10kΩ pull-up",
+      "position": { "x": 10, "y": 5 },
+      "pins": { "A": 1, "B": 2 }
+    },
+    {
+      "id": "R2",
+      "type": "resistor",
+      "label": "1.2kΩ PROG",
+      "position": { "x": 2, "y": 5 },
+      "pins": { "A": 1, "B": 2 }
+    },
+    {
+      "id": "C1",
+      "type": "capacitor_ceramic",
+      "label": "10µF",
+      "position": { "x": 4, "y": 3 },
+      "pins": { "A": 1, "B": 2 }
+    },
+    {
+      "id": "C2",
+      "type": "capacitor_ceramic",
+      "label": "100nF",
+      "position": { "x": 5, "y": 5 },
+      "pins": { "A": 1, "B": 2 }
+    },
+    {
+      "id": "D1",
+      "type": "led",
+      "label": "CHRG LED",
+      "position": { "x": 3, "y": 1 },
+      "pins": { "A": 1, "K": 2 }
+    },
+    {
+      "id": "D2",
+      "type": "led",
+      "label": "STDBY LED",
+      "position": { "x": 4, "y": 1 },
+      "pins": { "A": 1, "K": 2 }
+    }
+  ],
+  "nets": [
+    { "name": "USB5V", "connections": [["J1","VBUS"], ["U3","VCC"]] },
+    { "name": "GND",   "connections": [["J1","GND"],  ["U3","GND"],  ["U4","GND"],  ["U1","GND"], ["U2","GND"], ["J2","BAT-"], ["C1","B"], ["C2","B"]] },
+    { "name": "BAT",   "connections": [["U3","BAT"],  ["J2","BAT+"], ["U4","VIN"],  ["C1","A"]] },
+    { "name": "3V3",   "connections": [["U4","VOUT"], ["U1","3V3"],  ["U2","VDD"],  ["R1","A"],   ["C2","A"]] },
+    { "name": "DATA",  "connections": [["U2","DATA"],  ["U1","D2"],   ["R1","B"]] },
+    { "name": "PROG",  "connections": [["U3","PROG"],  ["R2","A"]] },
+    { "name": "PROG_GND","connections":[["R2","B"],    ["U3","GND"]] },
+    { "name": "CHRG",  "connections": [["U3","CHRG"],  ["D1","K"]] },
+    { "name": "STDBY", "connections": [["U3","STDBY"], ["D2","K"]] },
+    { "name": "CHRG_V","connections": [["D1","A"],     ["D2","A"],    ["U3","VCC"]] },
+    { "name": "TEMP",  "connections": [["U3","TEMP"],  ["U3","GND"]] }
+  ],
+  "board": {
+    "width": 12,
+    "height": 9,
+    "unit": "mm",
+    "grid": 1.0
+  }
+}

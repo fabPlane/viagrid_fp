@@ -1,0 +1,110 @@
+{
+  "name": "Raspberry Pi HAT – GPIO Expander & RTC",
+  "description": "A Raspberry Pi HAT that adds 16 additional GPIO pins via the MCP23017 I²C expander and a DS3231 real-time clock module with battery backup. Includes EEPROM for HAT identification (HAT spec requirement), I²C pull-ups, and decoupling capacitors. Great board for learning I²C addressing, level shifting, and HAT compliance.",
+  "components": [
+    {
+      "id": "U1",
+      "type": "mcp23017_i2c_gpio",
+      "label": "MCP23017",
+      "position": { "x": 7, "y": 4 },
+      "pins": {
+        "GPA0":1,"GPA1":2,"GPA2":3,"GPA3":4,"GPA4":5,"GPA5":6,"GPA6":7,"GPA7":8,
+        "GPB0":9,"GPB1":10,"GPB2":11,"GPB3":12,"GPB4":13,"GPB5":14,"GPB6":15,"GPB7":16,
+        "VDD":17,"VSS":18,"SDA":19,"SCL":20,"NC":21,"INTB":22,
+        "INTA":23,"RESET":24,"A2":25,"A1":26,"A0":27,"GND2":28
+      }
+    },
+    {
+      "id": "U2",
+      "type": "ds3231_rtc",
+      "label": "DS3231",
+      "position": { "x": 7, "y": 8 },
+      "pins": {
+        "32KHZ": 1, "VCC": 2, "INT_SQW": 3, "RST": 4,
+        "SCL": 5, "SDA": 6, "GND": 7, "VBAT": 8
+      }
+    },
+    {
+      "id": "U3",
+      "type": "eeprom_24c32",
+      "label": "AT24C32",
+      "position": { "x": 11, "y": 8 },
+      "pins": {
+        "A0":1,"A1":2,"A2":3,"GND":4,
+        "SDA":5,"SCL":6,"WP":7,"VCC":8
+      }
+    },
+    {
+      "id": "J1",
+      "type": "rpi_gpio_40pin",
+      "label": "RPi 40-pin",
+      "position": { "x": 1, "y": 5 },
+      "pins": {
+        "3V3_1":1,"5V_2":2,"SDA":3,"5V_4":4,"SCL":5,"GND_6":6,
+        "GPIO4":7,"GND_9":9,"GPIO17":11,"GPIO27":13,"GND_14":14,
+        "GPIO22":15,"3V3_17":17,"GPIO10":19,"GND_20":20,
+        "GPIO9":21,"GPIO11":23,"GPIO8":24,"GND_25":25,"GPIO7":26
+      }
+    },
+    {
+      "id": "BT1",
+      "type": "coin_cell_holder_cr2032",
+      "label": "CR2032",
+      "position": { "x": 10, "y": 4 },
+      "pins": { "+": 1, "-": 2 }
+    },
+    {
+      "id": "R1","type":"resistor","label":"4.7kΩ SDA","position":{"x":4,"y":3},"pins":{"A":1,"B":2}},
+    {
+      "id": "R2","type":"resistor","label":"4.7kΩ SCL","position":{"x":5,"y":3},"pins":{"A":1,"B":2}},
+    {
+      "id": "C1","type":"capacitor_ceramic","label":"100nF U1","position":{"x":7,"y":2},"pins":{"A":1,"B":2}},
+    {
+      "id": "C2","type":"capacitor_ceramic","label":"100nF U2","position":{"x":8,"y":2},"pins":{"A":1,"B":2}},
+    {
+      "id": "C3","type":"capacitor_ceramic","label":"100nF U3","position":{"x":9,"y":2},"pins":{"A":1,"B":2}},
+    {
+      "id": "J2",
+      "type": "header_2x8",
+      "label": "GPA/GPB OUT",
+      "position": { "x": 13, "y": 4 },
+      "pins": {
+        "GPA0":1,"GPA1":2,"GPA2":3,"GPA3":4,
+        "GPA4":5,"GPA5":6,"GPA6":7,"GPA7":8,
+        "GPB0":9,"GPB1":10,"GPB2":11,"GPB3":12,
+        "GPB4":13,"GPB5":14,"GPB6":15,"GPB7":16
+      }
+    }
+  ],
+  "nets": [
+    { "name": "3V3",  "connections": [["J1","3V3_1"],["U1","VDD"],["U2","VCC"],["U3","VCC"],["R1","A"],["R2","A"],["C1","A"],["C2","A"],["C3","A"]] },
+    { "name": "GND",  "connections": [["J1","GND_6"],["U1","VSS"],["U2","GND"],["U3","GND"],["C1","B"],["C2","B"],["C3","B"],["BT1","-"],["U1","A0"],["U1","A1"],["U1","A2"],["U3","A0"],["U3","A1"],["U3","A2"],["U3","WP"]] },
+    { "name": "SDA",  "connections": [["J1","SDA"],  ["U1","SDA"], ["U2","SDA"],["U3","SDA"],["R1","B"]] },
+    { "name": "SCL",  "connections": [["J1","SCL"],  ["U1","SCL"], ["U2","SCL"],["U3","SCL"],["R2","B"]] },
+    { "name": "VBAT", "connections": [["U2","VBAT"], ["BT1","+"]] },
+    { "name": "RST",  "connections": [["U1","RESET"],["U1","VDD"]] },
+    { "name": "GPA0", "connections": [["U1","GPA0"], ["J2","GPA0"]] },
+    { "name": "GPA1", "connections": [["U1","GPA1"], ["J2","GPA1"]] },
+    { "name": "GPA2", "connections": [["U1","GPA2"], ["J2","GPA2"]] },
+    { "name": "GPA3", "connections": [["U1","GPA3"], ["J2","GPA3"]] },
+    { "name": "GPA4", "connections": [["U1","GPA4"], ["J2","GPA4"]] },
+    { "name": "GPA5", "connections": [["U1","GPA5"], ["J2","GPA5"]] },
+    { "name": "GPA6", "connections": [["U1","GPA6"], ["J2","GPA6"]] },
+    { "name": "GPA7", "connections": [["U1","GPA7"], ["J2","GPA7"]] },
+    { "name": "GPB0", "connections": [["U1","GPB0"], ["J2","GPB0"]] },
+    { "name": "GPB1", "connections": [["U1","GPB1"], ["J2","GPB1"]] },
+    { "name": "GPB2", "connections": [["U1","GPB2"], ["J2","GPB2"]] },
+    { "name": "GPB3", "connections": [["U1","GPB3"], ["J2","GPB3"]] },
+    { "name": "GPB4", "connections": [["U1","GPB4"], ["J2","GPB4"]] },
+    { "name": "GPB5", "connections": [["U1","GPB5"], ["J2","GPB5"]] },
+    { "name": "GPB6", "connections": [["U1","GPB6"], ["J2","GPB6"]] },
+    { "name": "GPB7", "connections": [["U1","GPB7"], ["J2","GPB7"]] }
+  ],
+  "board": {
+    "width": 65,
+    "height": 56,
+    "unit": "mm",
+    "grid": 1.0,
+    "form_factor": "Raspberry Pi HAT"
+  }
+}

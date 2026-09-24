@@ -1,0 +1,116 @@
+{
+  "name": "Arduino Nano Breakout",
+  "description": "A clean breakout board for the Arduino Nano that exposes all I/O pins on 0.1\" pitch headers, adds a barrel-jack power input, a decoupling capacitor bank, and four mounting holes. Ideal first board for makers moving from breadboard to PCB.",
+  "components": [
+    {
+      "id": "U1",
+      "type": "arduino_nano",
+      "label": "Arduino Nano",
+      "position": { "x": 6, "y": 5 },
+      "pins": {
+        "D13": 1,  "3V3": 2,  "AREF": 3,  "A0": 4,   "A1": 5,
+        "A2": 6,   "A3": 7,   "A4": 8,    "A5": 9,   "A6": 10,
+        "A7": 11,  "5V": 12,  "RST1": 13, "GND1": 14, "VIN": 15,
+        "TX": 16,  "RX": 17,  "RST2": 18, "GND2": 19, "D2": 20,
+        "D3": 21,  "D4": 22,  "D5": 23,   "D6": 24,  "D7": 25,
+        "D8": 26,  "D9": 27,  "D10": 28,  "D11": 29, "D12": 30
+      }
+    },
+    {
+      "id": "J1",
+      "type": "barrel_jack",
+      "label": "7-12V IN",
+      "position": { "x": 1, "y": 2 },
+      "pins": { "VIN": 1, "GND": 2 }
+    },
+    {
+      "id": "J2",
+      "type": "header_1x15",
+      "label": "LEFT PINS",
+      "position": { "x": 1, "y": 5 },
+      "pins": {
+        "D13":1,"3V3":2,"AREF":3,"A0":4,"A1":5,"A2":6,"A3":7,
+        "A4":8,"A5":9,"A6":10,"A7":11,"5V":12,"RST":13,"GND":14,"VIN":15
+      }
+    },
+    {
+      "id": "J3",
+      "type": "header_1x15",
+      "label": "RIGHT PINS",
+      "position": { "x": 11, "y": 5 },
+      "pins": {
+        "TX":1,"RX":2,"RST":3,"GND":4,"D2":5,"D3":6,"D4":7,
+        "D5":8,"D6":9,"D7":10,"D8":11,"D9":12,"D10":13,"D11":14,"D12":15
+      }
+    },
+    {
+      "id": "C1",
+      "type": "capacitor_electrolytic",
+      "label": "100µF 16V",
+      "position": { "x": 1, "y": 4 },
+      "pins": { "+": 1, "-": 2 }
+    },
+    {
+      "id": "C2",
+      "type": "capacitor_ceramic",
+      "label": "100nF",
+      "position": { "x": 2, "y": 4 },
+      "pins": { "A": 1, "B": 2 }
+    },
+    {
+      "id": "D1",
+      "type": "led",
+      "label": "PWR LED",
+      "position": { "x": 3, "y": 2 },
+      "pins": { "A": 1, "K": 2 }
+    },
+    {
+      "id": "R1",
+      "type": "resistor",
+      "label": "1kΩ",
+      "position": { "x": 4, "y": 2 },
+      "pins": { "A": 1, "B": 2 }
+    },
+    {
+      "id": "MH1","type":"mounting_hole","label":"M3","position":{"x":0,"y":0},"pins":{}},
+    {
+      "id": "MH2","type":"mounting_hole","label":"M3","position":{"x":12,"y":0},"pins":{}},
+    {
+      "id": "MH3","type":"mounting_hole","label":"M3","position":{"x":0,"y":10},"pins":{}},
+    {
+      "id": "MH4","type":"mounting_hole","label":"M3","position":{"x":12,"y":10},"pins":{}}
+  ],
+  "nets": [
+    { "name": "VIN",  "connections": [["J1","VIN"],  ["U1","VIN"],  ["J2","VIN"],  ["C1","+"], ["C2","A"]] },
+    { "name": "GND",  "connections": [["J1","GND"],  ["U1","GND1"], ["U1","GND2"], ["J2","GND"], ["J3","GND"], ["C1","-"], ["C2","B"], ["D1","K"]] },
+    { "name": "5V",   "connections": [["U1","5V"],   ["J2","5V"],   ["R1","B"],    ["D1","A"]] },
+    { "name": "3V3",  "connections": [["U1","3V3"],  ["J2","3V3"]] },
+    { "name": "AREF", "connections": [["U1","AREF"], ["J2","AREF"]] },
+    { "name": "A0",   "connections": [["U1","A0"],   ["J2","A0"]] },
+    { "name": "A1",   "connections": [["U1","A1"],   ["J2","A1"]] },
+    { "name": "A2",   "connections": [["U1","A2"],   ["J2","A2"]] },
+    { "name": "A3",   "connections": [["U1","A3"],   ["J2","A3"]] },
+    { "name": "A4",   "connections": [["U1","A4"],   ["J2","A4"]] },
+    { "name": "A5",   "connections": [["U1","A5"],   ["J2","A5"]] },
+    { "name": "D13",  "connections": [["U1","D13"],  ["J2","D13"]] },
+    { "name": "TX",   "connections": [["U1","TX"],   ["J3","TX"]] },
+    { "name": "RX",   "connections": [["U1","RX"],   ["J3","RX"]] },
+    { "name": "D2",   "connections": [["U1","D2"],   ["J3","D2"]] },
+    { "name": "D3",   "connections": [["U1","D3"],   ["J3","D3"]] },
+    { "name": "D4",   "connections": [["U1","D4"],   ["J3","D4"]] },
+    { "name": "D5",   "connections": [["U1","D5"],   ["J3","D5"]] },
+    { "name": "D6",   "connections": [["U1","D6"],   ["J3","D6"]] },
+    { "name": "D7",   "connections": [["U1","D7"],   ["J3","D7"]] },
+    { "name": "D8",   "connections": [["U1","D8"],   ["J3","D8"]] },
+    { "name": "D9",   "connections": [["U1","D9"],   ["J3","D9"]] },
+    { "name": "D10",  "connections": [["U1","D10"],  ["J3","D10"]] },
+    { "name": "D11",  "connections": [["U1","D11"],  ["J3","D11"]] },
+    { "name": "D12",  "connections": [["U1","D12"],  ["J3","D12"]] }
+  ],
+  "board": {
+    "width": 13,
+    "height": 11,
+    "unit": "mm",
+    "grid": 1.0
+  }
+}

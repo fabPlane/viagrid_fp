@@ -1,0 +1,88 @@
+{
+  "name": "Audio Amplifier – Class D with Volume Control",
+  "description": "A stereo Class-D audio amplifier board based on the PAM8403 (5 V, 3 W × 2) with logarithmic potentiometer volume control, input coupling capacitors, and ferrite-bead EMI filters on the speaker outputs. Covers audio signal coupling, Class-D switching noise suppression, and power supply decoupling for audio circuits.",
+  "components": [
+    {
+      "id": "U1",
+      "type": "class_d_amp_pam8403",
+      "label": "PAM8403",
+      "position": { "x": 7, "y": 5 },
+      "pins": {
+        "LOUT+": 1, "LOUT-": 2, "MUTE": 3, "ROUT-": 4,
+        "ROUT+": 5, "VDD": 6, "SD_N": 7,
+        "RINP": 8, "RINN": 9, "LINN": 10, "LINP": 11,
+        "GND1": 12, "GND2": 13, "BYPASS": 14
+      }
+    },
+    {
+      "id": "RV1",
+      "type": "potentiometer_log_10k",
+      "label": "VOL L",
+      "position": { "x": 3, "y": 4 },
+      "pins": { "CCW": 1, "WIPER": 2, "CW": 3 }
+    },
+    {
+      "id": "RV2",
+      "type": "potentiometer_log_10k",
+      "label": "VOL R",
+      "position": { "x": 3, "y": 7 },
+      "pins": { "CCW": 1, "WIPER": 2, "CW": 3 }
+    },
+    {
+      "id": "C1","type":"capacitor_electrolytic","label":"10µF L_IN+","position":{"x":5,"y":4},"pins":{"+":1,"-":2}},
+    {
+      "id": "C2","type":"capacitor_electrolytic","label":"10µF L_IN-","position":{"x":5,"y":6},"pins":{"+":1,"-":2}},
+    {
+      "id": "C3","type":"capacitor_electrolytic","label":"10µF R_IN+","position":{"x":5,"y":7},"pins":{"+":1,"-":2}},
+    {
+      "id": "C4","type":"capacitor_electrolytic","label":"10µF R_IN-","position":{"x":5,"y":9},"pins":{"+":1,"-":2}},
+    {
+      "id": "C5","type":"capacitor_electrolytic","label":"220µF VDD","position":{"x":7,"y":2},"pins":{"+":1,"-":2}},
+    {
+      "id": "C6","type":"capacitor_ceramic","label":"1µF BYPASS","position":{"x":9,"y":7},"pins":{"A":1,"B":2}},
+    {
+      "id": "FB1","type":"ferrite_bead","label":"600Ω@100MHz LOUT+","position":{"x":10,"y":3},"pins":{"A":1,"B":2}},
+    {
+      "id": "FB2","type":"ferrite_bead","label":"600Ω@100MHz LOUT-","position":{"x":10,"y":5},"pins":{"A":1,"B":2}},
+    {
+      "id": "FB3","type":"ferrite_bead","label":"600Ω@100MHz ROUT+","position":{"x":10,"y":7},"pins":{"A":1,"B":2}},
+    {
+      "id": "FB4","type":"ferrite_bead","label":"600Ω@100MHz ROUT-","position":{"x":10,"y":9},"pins":{"A":1,"B":2}},
+    {
+      "id": "J1","type":"connector_2pin","label":"5V PWR","position":{"x":1,"y":2},"pins":{"VCC":1,"GND":2}},
+    {
+      "id": "J2","type":"audio_jack_stereo_3p5mm","label":"LINE IN","position":{"x":1,"y":5},"pins":{"L":1,"R":2,"GND":3}},
+    {
+      "id": "J3","type":"screw_terminal_2pin","label":"SPK LEFT","position":{"x":13,"y":4},"pins":{"OUT+":1,"OUT-":2}},
+    {
+      "id": "J4","type":"screw_terminal_2pin","label":"SPK RIGHT","position":{"x":13,"y":8},"pins":{"OUT+":1,"OUT-":2}}
+  ],
+  "nets": [
+    { "name": "VDD",    "connections": [["J1","VCC"],  ["U1","VDD"],  ["C5","+"], ["U1","SD_N"], ["U1","MUTE"]] },
+    { "name": "GND",    "connections": [["J1","GND"],  ["U1","GND1"], ["U1","GND2"], ["C5","-"], ["J2","GND"], ["RV1","CCW"], ["RV2","CCW"], ["C2","-"], ["C4","-"]] },
+    { "name": "BYPASS", "connections": [["U1","BYPASS"], ["C6","A"]] },
+    { "name": "BYP_GND","connections": [["C6","B"], ["U1","GND1"]] },
+    { "name": "L_IN",   "connections": [["J2","L"],    ["RV1","CW"]] },
+    { "name": "L_WIPE", "connections": [["RV1","WIPER"],["C1","+"]] },
+    { "name": "LINP",   "connections": [["C1","-"],    ["U1","LINP"]] },
+    { "name": "LINN",   "connections": [["C2","+"],    ["U1","LINN"]] },
+    { "name": "R_IN",   "connections": [["J2","R"],    ["RV2","CW"]] },
+    { "name": "R_WIPE", "connections": [["RV2","WIPER"],["C3","+"]] },
+    { "name": "RINP",   "connections": [["C3","-"],    ["U1","RINP"]] },
+    { "name": "RINN",   "connections": [["C4","+"],    ["U1","RINN"]] },
+    { "name": "LOUT+",  "connections": [["U1","LOUT+"],["FB1","A"]] },
+    { "name": "LOUT+O", "connections": [["FB1","B"],   ["J3","OUT+"]] },
+    { "name": "LOUT-",  "connections": [["U1","LOUT-"],["FB2","A"]] },
+    { "name": "LOUT-O", "connections": [["FB2","B"],   ["J3","OUT-"]] },
+    { "name": "ROUT+",  "connections": [["U1","ROUT+"],["FB3","A"]] },
+    { "name": "ROUT+O", "connections": [["FB3","B"],   ["J4","OUT+"]] },
+    { "name": "ROUT-",  "connections": [["U1","ROUT-"],["FB4","A"]] },
+    { "name": "ROUT-O", "connections": [["FB4","B"],   ["J4","OUT-"]] }
+  ],
+  "board": {
+    "width": 15,
+    "height": 12,
+    "unit": "mm",
+    "grid": 1.0
+  }
+}

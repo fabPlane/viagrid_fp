@@ -1,0 +1,108 @@
+{
+  "name": "H-Bridge Motor Driver",
+  "description": "A dual H-bridge motor controller using the L298N IC to drive two DC motors bidirectionally (or one stepper motor) from a microcontroller. Covers PWM speed control, flyback diodes, logic vs. motor power isolation, and heat-sink considerations.",
+  "components": [
+    {
+      "id": "U1",
+      "type": "h_bridge_l298n",
+      "label": "L298N",
+      "position": { "x": 6, "y": 5 },
+      "pins": {
+        "SENSE_A": 1, "OUT1": 2, "OUT2": 3, "VS": 4,
+        "IN1": 5, "EN_A": 6, "IN2": 7, "VSS": 8,
+        "IN3": 9, "EN_B": 10, "IN4": 11,
+        "OUT3": 12, "OUT4": 13, "SENSE_B": 14, "GND": 15
+      }
+    },
+    {
+      "id": "D1","type":"schottky_diode","label":"1N5819","position":{"x":4,"y":3},"pins":{"A":1,"K":2}},
+    {
+      "id": "D2","type":"schottky_diode","label":"1N5819","position":{"x":4,"y":5},"pins":{"A":1,"K":2}},
+    {
+      "id": "D3","type":"schottky_diode","label":"1N5819","position":{"x":4,"y":7},"pins":{"A":1,"K":2}},
+    {
+      "id": "D4","type":"schottky_diode","label":"1N5819","position":{"x":4,"y":9},"pins":{"A":1,"K":2}},
+    {
+      "id": "D5","type":"schottky_diode","label":"1N5819","position":{"x":8,"y":3},"pins":{"A":1,"K":2}},
+    {
+      "id": "D6","type":"schottky_diode","label":"1N5819","position":{"x":8,"y":5},"pins":{"A":1,"K":2}},
+    {
+      "id": "D7","type":"schottky_diode","label":"1N5819","position":{"x":8,"y":7},"pins":{"A":1,"K":2}},
+    {
+      "id": "D8","type":"schottky_diode","label":"1N5819","position":{"x":8,"y":9},"pins":{"A":1,"K":2}},
+    {
+      "id": "C1",
+      "type": "capacitor_electrolytic",
+      "label": "100µF 50V",
+      "position": { "x": 3, "y": 5 },
+      "pins": { "+": 1, "-": 2 }
+    },
+    {
+      "id": "C2",
+      "type": "capacitor_ceramic",
+      "label": "100nF",
+      "position": { "x": 3, "y": 7 },
+      "pins": { "A": 1, "B": 2 }
+    },
+    {
+      "id": "R1","type":"resistor","label":"0.1Ω 2W","position":{"x":6,"y":2},"pins":{"A":1,"B":2}},
+    {
+      "id": "R2","type":"resistor","label":"0.1Ω 2W","position":{"x":6,"y":9},"pins":{"A":1,"B":2}},
+    {
+      "id": "J1",
+      "type": "connector_2pin",
+      "label": "MOTOR PWR",
+      "position": { "x": 1, "y": 2 },
+      "pins": { "VS": 1, "GND": 2 }
+    },
+    {
+      "id": "J2",
+      "type": "connector_2pin",
+      "label": "LOGIC PWR 5V",
+      "position": { "x": 1, "y": 4 },
+      "pins": { "VSS": 1, "GND": 2 }
+    },
+    {
+      "id": "J3",
+      "type": "connector_2pin",
+      "label": "MOTOR A",
+      "position": { "x": 1, "y": 6 },
+      "pins": { "OUT1": 1, "OUT2": 2 }
+    },
+    {
+      "id": "J4",
+      "type": "connector_2pin",
+      "label": "MOTOR B",
+      "position": { "x": 1, "y": 8 },
+      "pins": { "OUT3": 1, "OUT4": 2 }
+    },
+    {
+      "id": "J5",
+      "type": "header_1x6",
+      "label": "CTRL",
+      "position": { "x": 10, "y": 4 },
+      "pins": { "EN_A":1,"IN1":2,"IN2":3,"IN3":4,"IN4":5,"EN_B":6 }
+    }
+  ],
+  "nets": [
+    { "name": "VS",   "connections": [["J1","VS"],  ["U1","VS"],  ["C1","+"], ["C2","A"], ["D1","K"],["D2","K"],["D5","K"],["D6","K"]] },
+    { "name": "GND",  "connections": [["J1","GND"], ["J2","GND"], ["U1","GND"], ["U1","SENSE_A"], ["U1","SENSE_B"], ["C1","-"],["C2","B"], ["D3","A"],["D4","A"],["D7","A"],["D8","A"], ["R1","A"], ["R2","A"]] },
+    { "name": "VSS",  "connections": [["J2","VSS"], ["U1","VSS"]] },
+    { "name": "OUT1", "connections": [["U1","OUT1"], ["J3","OUT1"], ["D1","A"],["D3","K"]] },
+    { "name": "OUT2", "connections": [["U1","OUT2"], ["J3","OUT2"], ["D2","A"],["D4","K"]] },
+    { "name": "OUT3", "connections": [["U1","OUT3"], ["J4","OUT3"], ["D5","A"],["D7","K"]] },
+    { "name": "OUT4", "connections": [["U1","OUT4"], ["J4","OUT4"], ["D6","A"],["D8","K"]] },
+    { "name": "EN_A", "connections": [["U1","EN_A"], ["J5","EN_A"]] },
+    { "name": "IN1",  "connections": [["U1","IN1"],  ["J5","IN1"]] },
+    { "name": "IN2",  "connections": [["U1","IN2"],  ["J5","IN2"]] },
+    { "name": "IN3",  "connections": [["U1","IN3"],  ["J5","IN3"]] },
+    { "name": "IN4",  "connections": [["U1","IN4"],  ["J5","IN4"]] },
+    { "name": "EN_B", "connections": [["U1","EN_B"], ["J5","EN_B"]] }
+  ],
+  "board": {
+    "width": 12,
+    "height": 12,
+    "unit": "mm",
+    "grid": 1.0
+  }
+}
