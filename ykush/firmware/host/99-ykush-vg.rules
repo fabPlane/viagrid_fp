@@ -1,0 +1,6 @@
+# Let normal users talk to YKUSH / YKUSH-VG boards (ykushcmd, host/ykvg.py) and the CH552
+# bootloader (wchisp). Install: sudo cp 99-ykush-vg.rules /etc/udev/rules.d/ && sudo udevadm control --reload
+SUBSYSTEM=="usb", ATTRS{idVendor}=="04d8", ATTRS{idProduct}=="f2f7", MODE="0666"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="04d8", ATTRS{idProduct}=="f2f7", MODE="0666"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="4348", ATTRS{idProduct}=="55e0", MODE="0666"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="55e0", MODE="0666"

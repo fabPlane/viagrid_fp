@@ -1,0 +1,4 @@
+(sym_lib_table
+  (version 7)
+  (lib (name "ykush_vg")(type "KiCad")(uri "${KIPRJMOD}/ykush_vg.kicad_sym")(options "")(descr "YKUSH-VG custom symbols"))
+)

@@ -1,0 +1,213 @@
+"""Generate the YKUSH-VG schematic (KiCad 10) plus a BOM/netlist summary.
+
+Run:  python3 make_schematic.py      (writes ../kicad/ykush_vg.kicad_sch)
+Then: python3 check_netlist.py   (and kicad-cli sch erc ../kicad/ykush_vg.kicad_sch)
+"""
+import csv
+import os
+
+from schgen import Sheet, custom_ic
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+OUT = os.path.join(HERE, '..', 'kicad')
+
+R0603 = 'Resistor_SMD:R_0603_1608Metric'
+C0603 = 'Capacitor_SMD:C_0603_1608Metric'
+C0805 = 'Capacitor_SMD:C_0805_2012Metric'
+CAP_EL = 'Capacitor_SMD:CP_Elec_6.3x7.7'
+C1206 = 'Capacitor_SMD:C_1206_3216Metric'
+LED0805 = 'LED_SMD:LED_0805_2012Metric'  # 0805 green is a JLC Basic part (C2297)
+
+sh = Sheet('ykush_vg', 'YKUSH-VG: 3-port switchable USB 2.0 hub on Viagrid 9055')
+
+# ---------------------------------------------------------------- custom symbols
+# CH552G pinout: WCH CH552 datasheet v1E, SOP16 column (cross-checked vs wagiminator
+# CH552-MacroPad-plus schematic).
+CH552G = custom_ic(
+    'ykush_vg:CH552G',
+    pins_left=[('12', 'P3.6/UDP', 'bidirectional'),
+               ('13', 'P3.7/UDM', 'bidirectional'),
+               ('6', 'RST', 'input'),
+               ('15', 'VCC', 'power_in'),
+               ('16', 'V33', 'passive'),
+               ('14', 'GND', 'power_in')],
+    pins_right=[('1', 'P3.2/INT0', 'bidirectional'),
+                ('2', 'P1.4', 'bidirectional'),
+                ('3', 'P1.5', 'bidirectional'),
+                ('4', 'P1.6', 'bidirectional'),
+                ('5', 'P1.7', 'bidirectional'),
+                ('7', 'P3.1/TXD', 'bidirectional'),
+                ('8', 'P3.0/RXD', 'bidirectional'),
+                ('9', 'P1.1', 'bidirectional'),
+                ('10', 'P3.3', 'bidirectional'),
+                ('11', 'P3.4', 'bidirectional')],
+    footprint='Package_SO:SOIC-16_3.9x9.9mm_P1.27mm', value='CH552G',
+    desc='WCH CH552G 8051 MCU with USB device, SOP-16')
+
+# SY6280AAC pinout: Silergy AN_SY6280 datasheet (cross-checked vs OLIMEX netlist).
+# No FLG pin. EN active high, must not float. I_LIM = 6800 / R_SET.
+SY6280 = custom_ic(
+    'ykush_vg:SY6280AAC',
+    pins_left=[('5', 'IN', 'power_in'), ('4', 'EN', 'input'), ('3', 'ISET', 'passive')],
+    pins_right=[('1', 'OUT', 'power_out'), ('2', 'GND', 'power_in')],
+    footprint='Package_TO_SOT_SMD:SOT-23-5', value='SY6280AAC',
+    desc='Silergy SY6280AAC current-limited load switch, SOT-23-5')
+
+sh.lib('ykush_vg:CH552G', CH552G)
+sh.lib('ykush_vg:SY6280AAC', SY6280)
+
+# ---------------------------------------------------------------- helpers
+_n = {'U': 2}  # U1-U2 are placed by hand below
+
+
+def ref(prefix):
+    _n[prefix] = _n.get(prefix, 0) + 1
+    return f'{prefix}{_n[prefix]}'
+
+
+def R(value, a, b, at, **kw):
+    sh.add(ref('R'), 'Device:R', value, at, {'1': a, '2': b}, R0603, **kw)
+
+
+def C(value, a, b, at, fp=None, **kw):
+    lib = 'Device:C_Polarized' if fp == CAP_EL else 'Device:C'
+    fp = fp or (C0805 if value in ('10uF',) else C0603)
+    sh.add(ref('C'), lib, value, at, {'1': a, '2': b}, fp, **kw)
+
+
+def LED(net_a, net_k, at, value='LED_green'):
+    sh.add(ref('D'), 'Device:LED', value, at, {'2': net_a, '1': net_k}, LED0805)
+
+
+def column(x, y0, dy=20.32):
+    """Yield successive positions going down a column."""
+    y = y0
+    while True:
+        yield (x, y)
+        y += dy
+
+
+# ================================================================= UPSTREAM
+sh.text('UPSTREAM USB-C (device/UFP)', (20, 20))
+sh.add('J1', 'Connector:USB_C_Receptacle_USB2.0_16P', 'USB-C 16P', (40, 60),
+       {'A1': 'GND', 'A4': 'VBUS_UP', 'A5': 'CC1', 'A6': 'UP_DP', 'A7': 'UP_DM_A',
+        'B5': 'CC2', 'SH': 'GND', 'A9': 'VBUS_UP', 'A12': 'GND', 'B1': 'GND', 'B4': 'VBUS_UP',
+        'B6': 'UP_DP', 'B7': 'UP_DM', 'B9': 'VBUS_UP', 'B12': 'GND'},
+       'Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12', nc=('A8', 'B8'))
+col = column(95, 40)
+# USB-C data pads are interleaved (B6=D+ A7=D- A6=D+ B7=D-). Viagrid has no via next to the
+# connector, so a 0R jumper carries D- from A7 over the A6 (D+) trace to B7.
+sh.add('JP1', 'Device:R', '0R', (80, 100), {'1': 'UP_DM_A', '2': 'UP_DM'}, R0603)
+R('5.1k', 'CC1', 'GND', next(col))
+R('5.1k', 'CC2', 'GND', next(col))
+C('10uF', 'VBUS_UP', 'GND', next(col))
+# No upstream ESD: on a Viagrid there is no via to reach its VBUS/GND pins without
+# blocking the upstream pair (see pcb/LAYOUT.md). The three downstream ports keep theirs.
+sh.flag('VBUS_UP', (125, 40))
+sh.flag('GND', (140, 40))
+
+# ================================================================= POWER PATH
+sh.text('POWER: downstream rail +5V_PORT = VBUS_UP or EXT_5V (diode-OR)', (20, 140))
+sh.add('J5', 'Connector:Screw_Terminal_01x02', 'EXT 5V', (40, 165),
+       {'1': 'EXT_5V_IN', '2': 'GND'}, 'TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.08mm_Horizontal')
+sh.add('F1', 'Device:Polyfuse', '2A hold', (70, 165), {'1': 'EXT_5V_IN', '2': 'EXT_5V'},
+       'Fuse:Fuse_1812_4532Metric')
+sh.add(ref('D'), 'Device:D_Schottky', 'SS34', (100, 160), {'2': 'EXT_5V', '1': '+5V_PORT'}, 'Diode_SMD:D_SMA')
+sh.add(ref('D'), 'Device:D_Schottky', 'SS34', (100, 180), {'2': 'VBUS_UP', '1': '+5V_PORT'}, 'Diode_SMD:D_SMA')
+C('220uF', '+5V_PORT', 'GND', (130, 165), fp=CAP_EL)
+R('1k', '+5V_PORT', 'LED_PWR', (150, 160))
+LED('LED_PWR', 'GND', (150, 180))
+sh.flag('EXT_5V_IN', (70, 185))
+sh.flag('+5V_PORT', (130, 185))
+
+# ================================================================= HUB
+sh.text('HUB: Terminus FE1.1s (SSOP-28, 0.635mm). No crystal load caps (internal). DRV/LED pins unused.', (190, 20))
+sh.add('U1', 'Interface_USB:FE1.1s', 'FE1.1s', (240, 75),
+       {'1': 'GND', '2': 'XOUT', '3': 'XIN',
+        '4': 'MCU_DM', '5': 'MCU_DP',
+        # Port order along the SSOP matches the layout so no USB pair has to cross another
+        # (see pcb/LAYOUT.md): hub port 4 -> CH552G, 3 -> J2 (left), 2 -> J3, 1 -> J4 (right).
+        '6': 'P1_DM', '7': 'P1_DP', '8': 'P2_DM', '9': 'P2_DP', '10': 'P3_DM', '11': 'P3_DP',
+        '12': '+1V8', '13': '+3V3', '14': 'REXT', '15': 'UP_DM', '16': 'UP_DP',
+        # XRSTJ (17) and BUSJ (19) sit next to VBUSM (18): all three take the divided VBUS
+        # (~3.2 V) = reset released + self-powered whenever the host supplies VBUS.
+        '17': 'VBUSM', '18': 'VBUSM', '19': 'VBUSM', '20': 'VBUS_UP', '21': '+3V3',
+        '26': '+3V3', '28': '+1V8'},
+       'Package_SO:SSOP-28_3.9x9.9mm_P0.635mm', nc=('22', '23', '24', '25', '27'))
+sh.add('Y1', 'Device:Crystal_GND24', '12MHz', (240, 125),
+       {'1': 'XIN', '3': 'XOUT', '2': 'GND', '4': 'GND'}, 'Crystal:Crystal_SMD_3225-4Pin_3.2x2.5mm')
+col = column(300, 35)
+C('10uF', 'VBUS_UP', 'GND', next(col))    # VDD5
+C('10uF', '+3V3', 'GND', next(col))       # VD33_O
+C('100nF', '+3V3', 'GND', next(col))      # VD33
+C('10uF', '+1V8', 'GND', next(col))       # VD18_O
+C('100nF', '+1V8', 'GND', next(col))      # VD18
+R('2.7k 1%', 'REXT', 'GND', next(col))
+col = column(330, 35)
+R('56k', 'VBUS_UP', 'VBUSM', next(col))
+R('100k', 'VBUSM', 'GND', next(col))
+C('100nF', 'VBUSM', 'GND', next(col))
+
+# ================================================================= MCU
+sh.text('CONTROL: WCH CH552G on hub port 4, always powered from VBUS_UP.', (190, 205))
+sh.text('Boot: hold SW1 while plugging in, or jump to bootloader from firmware.', (190, 211), 1.4)
+sh.add('U2', 'ykush_vg:CH552G', 'CH552G', (250, 250),
+       {'12': 'MCU_DP', '13': 'MCU_DM', '15': 'VBUS_UP', '16': 'V33_MCU', '14': 'GND',
+        # EN1 on P1.4 (pin 2): next to a Viagrid cluster on the board. Pin choice is firmware's.
+        '1': 'LED_STAT', '2': 'EN1', '10': 'EN2', '11': 'EN3'},
+       nc=('3', '4', '5', '6', '7', '8', '9'))  # RST has an internal pull-down
+col = column(310, 230)
+C('10uF', 'VBUS_UP', 'GND', next(col))
+C('100nF', 'V33_MCU', 'GND', next(col))
+sh.add('SW1', 'Switch:SW_Push', 'BOOT', next(col), {'1': 'V33_MCU', '2': 'BOOT_R'},
+       'Button_Switch_SMD:SW_Push_1P1T_XKB_TS-1187A')
+R('10k', 'BOOT_R', 'MCU_DP', next(col))
+col = column(340, 230)
+R('1k', 'LED_STAT', 'LED_STAT_A', next(col))
+LED('LED_STAT_A', 'GND', next(col))
+# ================================================================= PORTS
+sh.text('DOWNSTREAM PORTS: SY6280AAC per port, I_LIM = 6800/R_SET (10k -> ~0.68 A); 22uF + 10uF per port', (390, 20))
+for i in (1, 2, 3):
+    y = 30 + (i - 1) * 85
+    vb = f'VBUS_P{i}'
+    sh.add(ref('U'), 'ykush_vg:SY6280AAC', 'SY6280AAC', (420, y + 25),
+           {'5': '+5V_PORT', '4': f'EN{i}', '3': f'ISET{i}', '1': vb, '2': 'GND'})
+    R('10k', f'ISET{i}', 'GND', (400, y + 50))
+    R('100k', f'EN{i}', 'GND', (415, y + 50))    # keep port off while MCU boots
+    C('10uF', '+5V_PORT', 'GND', (430, y + 50))
+    C('22uF', vb, 'GND', (460, y + 50), fp=C1206)   # per-port bulk (one 220uF on +5V_PORT)
+    C('10uF', vb, 'GND', (475, y + 50))
+    R('1k', vb, f'LED_P{i}', (490, y + 50))
+    LED(f'LED_P{i}', 'GND', (505, y + 50))
+    sh.add(f'J{i + 1}', 'Connector:USB_A', 'USB-A port', (540, y + 20),
+           {'1': vb, '2': f'P{i}_DM', '3': f'P{i}_DP', '4': 'GND', 'SH': 'GND'},
+           'Connector_USB:USB_A_TE_292303-7_Horizontal')
+    sh.add(ref('U'), 'Power_Protection:USBLC6-2SC6', 'USBLC6-2SC6', (480, y + 15),
+           {'1': f'P{i}_DP', '6': f'P{i}_DP', '3': f'P{i}_DM', '4': f'P{i}_DM', '5': vb, '2': 'GND'},
+           'Package_TO_SOT_SMD:SOT-23-6')
+
+os.makedirs(OUT, exist_ok=True)
+SCH = os.path.join(OUT, 'ykush_vg.kicad_sch')
+sh.write(SCH)
+sh.write_project_lib('ykush_vg', os.path.join(OUT, 'ykush_vg.kicad_sym'))
+with open(os.path.join(OUT, 'sym-lib-table'), 'w') as f:
+    f.write('(sym_lib_table\n  (version 7)\n'
+            '  (lib (name "ykush_vg")(type "KiCad")(uri "${KIPRJMOD}/ykush_vg.kicad_sym")(options "")'
+            '(descr "YKUSH-VG custom symbols"))\n)\n')
+with open(os.path.join(OUT, 'nets.txt'), 'w') as f:
+    for net, nodes in sorted(sh.nets().items()):
+        f.write(f'{net}: {" ".join(sorted(nodes))}\n')
+PRO = os.path.join(OUT, 'ykush_vg.kicad_pro')
+if not os.path.exists(PRO):
+    with open(PRO, 'w') as f:
+        f.write('{"meta": {"filename": "ykush_vg.kicad_pro", "version": 3}}\n')
+# Let KiCad re-save the file in its own native format (stable formatting, correct version).
+CLI = os.environ.get('KICAD_CLI', '/opt/kicad10/bin/kicad-cli')
+if os.path.exists(CLI):
+    import subprocess
+    subprocess.run([CLI, 'sch', 'upgrade', '--force', SCH], check=True, capture_output=True)
+
+print('parts', len([p for p in sh.parts if not p['ref'].startswith('#')]))
+
+import bom  # noqa: E402
+bom.write(sh.parts, OUT)
