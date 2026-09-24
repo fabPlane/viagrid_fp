@@ -15,7 +15,7 @@ R0603 = 'Resistor_SMD:R_0603_1608Metric'
 C0603 = 'Capacitor_SMD:C_0603_1608Metric'
 C0805 = 'Capacitor_SMD:C_0805_2012Metric'
 CAP_EL = 'Capacitor_SMD:CP_Elec_6.3x7.7'
-LED0603 = 'LED_SMD:LED_0603_1608Metric'
+LED0805 = 'LED_SMD:LED_0805_2012Metric'  # 0805 green is a JLC Basic part (C2297)
 
 sh = Sheet('ykush_vg', 'YKUSH-VG: 3-port switchable USB 2.0 hub on Viagrid 9055')
 
@@ -75,7 +75,7 @@ def C(value, a, b, at, fp=None, **kw):
 
 
 def LED(net_a, net_k, at, value='LED_green'):
-    sh.add(ref('D'), 'Device:LED', value, at, {'2': net_a, '1': net_k}, LED0603)
+    sh.add(ref('D'), 'Device:LED', value, at, {'2': net_a, '1': net_k}, LED0805)
 
 
 def column(x, y0, dy=20.32):
@@ -111,7 +111,7 @@ sh.add('F1', 'Device:Polyfuse', '2A hold', (70, 165), {'1': 'EXT_5V_IN', '2': 'E
        'Fuse:Fuse_1812_4532Metric')
 sh.add(ref('D'), 'Device:D_Schottky', 'SS34', (100, 160), {'2': 'EXT_5V', '1': '+5V_PORT'}, 'Diode_SMD:D_SMA')
 sh.add(ref('D'), 'Device:D_Schottky', 'SS34', (100, 180), {'2': 'VBUS_UP', '1': '+5V_PORT'}, 'Diode_SMD:D_SMA')
-C('150uF', '+5V_PORT', 'GND', (130, 165), fp=CAP_EL)
+C('220uF', '+5V_PORT', 'GND', (130, 165), fp=CAP_EL)
 R('1k', '+5V_PORT', 'LED_PWR', (150, 160))
 LED('LED_PWR', 'GND', (150, 180))
 sh.flag('EXT_5V_IN', (70, 185))
@@ -167,7 +167,7 @@ LED('LED_STAT_A', 'GND', next(col))
 sh.add('J6', 'Connector_Generic:Conn_01x08', 'PROG/DEBUG', (250, 300),
        {'1': 'VBUS_UP', '2': 'GND', '3': 'MCU_RST', '4': 'MCU_P14', '5': 'MCU_P15',
         '6': 'MCU_P16', '7': 'MCU_P17', '8': 'MCU_TXD'},
-       'Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical')
+       'Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical', dnp=True)
 
 # ================================================================= PORTS
 sh.text('DOWNSTREAM PORTS: SY6280AAC per port, I_LIM = 6800/R_SET (10k -> ~0.68 A)', (390, 20))
@@ -179,11 +179,11 @@ for i in (1, 2, 3):
     R('10k', f'ISET{i}', 'GND', (400, y + 50))
     R('100k', f'EN{i}', 'GND', (415, y + 50))    # keep port off while MCU boots
     C('10uF', '+5V_PORT', 'GND', (430, y + 50))
-    C('150uF', vb, 'GND', (460, y + 50), fp=CAP_EL)
+    C('220uF', vb, 'GND', (460, y + 50), fp=CAP_EL)
     C('10uF', vb, 'GND', (475, y + 50))
     R('1k', vb, f'LED_P{i}', (490, y + 50))
     LED(f'LED_P{i}', 'GND', (505, y + 50))
-    sh.add(f'J{i + 1}', 'Connector:USB_A', f'USB-A port {i}', (540, y + 20),
+    sh.add(f'J{i + 1}', 'Connector:USB_A', 'USB-A port', (540, y + 20),
            {'1': vb, '2': f'P{i}_DM', '3': f'P{i}_DP', '4': 'GND', '5': 'GND'},
            'Connector_USB:USB_A_Molex_67643_Horizontal')
     sh.add(ref('U'), 'Power_Protection:USBLC6-2SC6', 'USBLC6-2SC6', (480, y + 15),
@@ -196,3 +196,6 @@ with open(os.path.join(OUT, 'nets.txt'), 'w') as f:
     for net, nodes in sorted(sh.nets().items()):
         f.write(f'{net}: {" ".join(sorted(nodes))}\n')
 print('parts', len([p for p in sh.parts if not p['ref'].startswith('#')]))
+
+import bom  # noqa: E402
+bom.write(sh.parts, OUT)

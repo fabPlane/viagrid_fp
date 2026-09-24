@@ -82,6 +82,8 @@ class Sheet:
         """nets: {pin_number: net_name}. Pins listed in nc get a no-connect flag.
         Any pin not in nets/nc raises, so nothing is silently left floating."""
         sym = self.lib(libid)
+        if not footprint:
+            footprint = next((x[2] for x in sym if isinstance(x, list) and x[:2] == ['property', 'Footprint']), '')
         X, Y = at
         pl = kilib.pins(sym)
         nums = {p[0] for p in pl}
