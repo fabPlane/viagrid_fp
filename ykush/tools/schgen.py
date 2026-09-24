@@ -89,11 +89,15 @@ class Sheet:
         extra = (set(nets) | set(nc)) - nums
         if missing or extra:
             raise ValueError(f'{ref}: unassigned pins {sorted(missing)} unknown {sorted(extra)}')
+        vertical2 = len(pl) == 2 and all(p[3] == 0 for p in pl)
+        fx, fy, fj = (2.54, 1.27, 'left') if vertical2 else (0, 3, None)
+        if ref.startswith('#'):
+            fx, fy, fj = 0, 3, None
         inst = [S('symbol'), [S('lib_id'), libid], [S('at'), X, Y, 0], [S('unit'), 1],
                 [S('in_bom'), S('yes')], [S('on_board'), S('yes')], [S('dnp'), S('yes' if dnp else 'no')],
                 [S('uuid'), uid()],
-                [S('property'), 'Reference', ref, [S('at'), X, Y - 3, 0], eff()],
-                [S('property'), 'Value', value, [S('at'), X, Y + 3, 0], eff()],
+                [S('property'), 'Reference', ref, [S('at'), X + fx, Y - fy, 0], eff(fj)],
+                [S('property'), 'Value', value, [S('at'), X + fx, Y + fy, 0], eff(fj)],
                 [S('property'), 'Footprint', footprint, [S('at'), X, Y, 0], eff(hide=True)]]
         for k, v in (fields or {}).items():
             inst.append([S('property'), k, v, [S('at'), X, Y, 0], eff(hide=True)])

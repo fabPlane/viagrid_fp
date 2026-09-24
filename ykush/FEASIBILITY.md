@@ -64,7 +64,7 @@ Taken from the `opulo-inc/viagrid` 9055 KiCad template:
   is about 0.25 mm wide on 0.5 mm pitch, so a barrel cannot safely sit on it. The part must be
   placed so that no grid point falls on the pad ring. You also need 2x2 grid vias under the
   exposed pad for GND. It is doable, but requires careful offset and rotation.
-- **SSOP hubs** are easier, for example FE1.1s or GL850G (SSOP-28, 0.65 mm pitch, 4-port USB 2.0
+- **SSOP hubs** are easier, for example FE1.1s or GL850G (SSOP-28 3.9 mm body, 0.635 mm pitch, 4-port USB 2.0
   HS). The pads are wider, so a via-in-pad on the pin that needs it is tolerable. They have no
   exposed pad and are easy to hand-solder. **This is the recommended choice for a first spin.**
 - Load switches (SOT-23-5, for example AP2553/TPS2051-class) and a USB MCU in SOIC/TSSOP-14 (for
