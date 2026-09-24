@@ -66,6 +66,7 @@ FALLBACK_W = (0.3, 0.25, 0.2)
 PRIORITY = [f'GND_TIE:{a}.{b}' for a, b, _, _ in GND_TIES] + ['XIN', 'XOUT', 'REXT', '+1V8', '+3V3', 'VBUSM',          # through the gap under the hub
             'UP_DM_A', 'UP_DP', 'UP_DM', 'CC1', 'CC2',                # USB-C
             'P1_DP', 'P1_DM', 'P2_DP', 'P2_DM', 'P3_DP', 'P3_DM',      # High-Speed port pairs
+            'EN1', 'EN2', 'EN3',                                      # must cross the pairs via B.Cu
             'GND_NET', 'VBUS_UP', 'MCU_DP', 'MCU_DM']                            # FS link may use vias
 
 mm = pcbnew.FromMM
