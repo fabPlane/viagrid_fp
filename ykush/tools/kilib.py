@@ -3,22 +3,31 @@ import copy
 import os
 from sexpr import parse, find, find1, Sym
 
-LIBDIR = os.environ.get('KICAD_SYMBOL_DIR', '/usr/share/kicad/symbols')
+# KiCad 10 libraries (one file per symbol, *.kicad_symdir); fall back to older single-file libs.
+LIBDIR = os.environ.get('KICAD_SYMBOL_DIR') or next(
+    (d for d in ('/opt/kicad10/share/kicad/symbols', '/usr/share/kicad/symbols') if os.path.isdir(d)))
 _cache = {}
 
 
-def _lib(name):
-    if name not in _cache:
-        with open(os.path.join(LIBDIR, name + '.kicad_sym')) as f:
-            _cache[name] = parse(f.read())
-    return _cache[name]
+def _syms(lib):
+    """{symbol name: sexpr} for a library, in either format."""
+    if lib not in _cache:
+        d = os.path.join(LIBDIR, lib + '.kicad_symdir')
+        files = ([os.path.join(d, f) for f in sorted(os.listdir(d)) if f.endswith('.kicad_sym')]
+                 if os.path.isdir(d) else [os.path.join(LIBDIR, lib + '.kicad_sym')])
+        out = {}
+        for fn in files:
+            with open(fn) as f:
+                for s in find(parse(f.read()), 'symbol'):
+                    out[s[1]] = s
+        _cache[lib] = out
+    return _cache[lib]
 
 
 def load(libid):
     """Return a lib_symbols entry named 'Lib:Name', flattened (no extends)."""
     lib, name = libid.split(':')
-    root = _lib(lib)
-    syms = {s[1]: s for s in find(root, 'symbol')}
+    syms = _syms(lib)
     s = copy.deepcopy(syms[name])
     ext = find1(s, 'extends')
     if ext:

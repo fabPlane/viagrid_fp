@@ -15,7 +15,8 @@ A board that works like the [Yepkit YKUSH](https://www.yepkit.com/products/ykush
 | File | What |
 |---|---|
 | `FEASIBILITY.md` | Why this is doable on Viagrid, and the risks |
-| `kicad/ykush_vg.kicad_sch` | Schematic, generated. KiCad 7 format; opens in KiCad 7-10 |
+| `kicad/ykush_vg.kicad_pro` / `.kicad_sch` | KiCad 10 project and schematic (generated) |
+| `kicad/ykush_vg.kicad_sym`, `kicad/sym-lib-table` | Project symbol library (CH552G, SY6280AAC) |
 | `kicad/ykush_vg_schematic.pdf` | PDF of the schematic |
 | `kicad/bom.md`, `kicad/bom.csv` | BOM with Shopee/Lazada, AliExpress, DigiKey and JLCPCB columns |
 | `kicad/nets.txt` | Netlist the generator intended |
@@ -24,12 +25,16 @@ A board that works like the [Yepkit YKUSH](https://www.yepkit.com/products/ykush
 
 ```sh
 cd tools && python3 make_schematic.py && python3 check_netlist.py
+kicad-cli sch erc --severity-all ../kicad/ykush_vg.kicad_sch
 ```
+
+Needs KiCad 10. The generator reads the KiCad 10 symbol libraries and then runs
+`kicad-cli sch upgrade`, so the saved file is in KiCad's native format.
 
 ## Status
 - [x] Schematic. Pinouts checked against the FE1.1s, CH552 and SY6280 datasheets, and against
   open-source boards.
 - [x] BOM and sourcing
-- [ ] ERC in KiCad 10
+- [x] ERC in KiCad 10.0.6: 0 violations (all severities)
 - [ ] PCB layout on the Viagrid 9055 grid
 - [ ] CH552 firmware (YKUSH HID protocol)

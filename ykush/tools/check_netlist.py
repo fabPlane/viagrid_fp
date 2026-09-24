@@ -8,7 +8,7 @@ from sexpr import parse, find, find1
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 KDIR = os.path.join(HERE, '..', 'kicad')
-cli = os.environ.get('KICAD_CLI', 'kicad-cli')
+cli = os.environ.get('KICAD_CLI', '/opt/kicad10/bin/kicad-cli')
 
 with tempfile.TemporaryDirectory() as td:
     out = os.path.join(td, 'n.net')

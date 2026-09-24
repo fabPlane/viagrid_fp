@@ -6,7 +6,7 @@
 5,Y1,1,YXC X322512MSB4SI 12 MHz 3225 4-pad,Crystal_SMD_3225-4Pin_3.2x2.5mm,"YES - Shopee PH (check passive crystal, not oscillator)",LIKELY,Abracon ABM8-12.000MHZ-B2-T (535-9826-1-ND),C9002,Basic,FE1.1s has internal load caps; no external caps fitted.
 6,J1,1,HRO TYPE-C-31-M-12 (USB 2.0 16-pin),USB_C_Receptacle_HRO_TYPE-C-31-M-12,YES (generic 16P) - Lazada PH; HRO brand not seen,YES,"NO (alt: GCT USB4105-GF-A, 2073-USB4105-GF-ACT-ND)",C165948,Extended,4 shell pegs are THT: drill on Viagrid.
 7,J2 J3 J4,3,"USB-A female, right angle (e.g. XKB U231-091N-4BLRA00-S)",USB_A_Molex_67643_Horizontal,LIKELY (only USB 3.0 90deg seen on Shopee PH),YES,GCT USB1061-GF-L-A,C2880618,Extended,Final footprint depends on the exact socket bought; shell tabs need drilled holes.
-8,J5,1,Screw terminal 2P 5.08 mm (KF301-2P),TerminalBlock_bornier-2_P5.08mm,YES - Shopee PH,LIKELY,Phoenix 1935161 (277-1667-ND),C474881,Extended,"THT: drill holes, or use solder pads + wire."
+8,J5,1,Screw terminal 2P 5.08 mm (KF301-2P),"TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.08mm_Horizontal",YES - Shopee PH,LIKELY,Phoenix 1935161 (277-1667-ND),C474881,Extended,"THT: drill holes, or use solder pads + wire."
 9,SW1,1,Tactile switch 5.1x5.1 mm SMD (XKB TS-1187A-B-A-B),SW_Push_1P1T_XKB_TS-1187A,YES - Shopee PH (check top-actuated 5.1 mm),LIKELY,C&K PTS810 SJM 250 SMTR LFS,C318884,Basic,
 10,F1,1,"PTC resettable fuse 1812, 2 A hold",Fuse_1812_4532Metric,YES - Shopee PH,LIKELY,Littelfuse 1812L200/12DR,C315901,Extended,
 11,D1 D2,2,"SS34 Schottky 3 A 40 V, SMA",D_SMA,YES - Shopee PH (check SMA not SMB),LIKELY,Vishay SSA34-E3/61T,C8678,Basic,

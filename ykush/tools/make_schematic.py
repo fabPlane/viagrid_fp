@@ -1,7 +1,7 @@
-"""Generate the YKUSH-VG schematic (KiCad 7 format) plus a BOM/netlist summary.
+"""Generate the YKUSH-VG schematic (KiCad 10) plus a BOM/netlist summary.
 
 Run:  python3 make_schematic.py      (writes ../kicad/ykush_vg.kicad_sch)
-Then: kicad-cli sch erc ../kicad/ykush_vg.kicad_sch
+Then: python3 check_netlist.py   (and kicad-cli sch erc ../kicad/ykush_vg.kicad_sch)
 """
 import csv
 import os
@@ -90,7 +90,7 @@ def column(x, y0, dy=20.32):
 sh.text('UPSTREAM USB-C (device/UFP) + ESD', (20, 20))
 sh.add('J1', 'Connector:USB_C_Receptacle_USB2.0_16P', 'USB-C 16P', (40, 60),
        {'A1': 'GND', 'A4': 'VBUS_UP', 'A5': 'CC1', 'A6': 'UP_DP', 'A7': 'UP_DM',
-        'B5': 'CC2', 'S1': 'GND', 'A9': 'VBUS_UP', 'A12': 'GND', 'B1': 'GND', 'B4': 'VBUS_UP',
+        'B5': 'CC2', 'SH': 'GND', 'A9': 'VBUS_UP', 'A12': 'GND', 'B1': 'GND', 'B4': 'VBUS_UP',
         'B6': 'UP_DP', 'B7': 'UP_DM', 'B9': 'VBUS_UP', 'B12': 'GND'},
        'Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12', nc=('A8', 'B8'))
 col = column(95, 40)
@@ -106,7 +106,7 @@ sh.flag('GND', (140, 40))
 # ================================================================= POWER PATH
 sh.text('POWER: downstream rail +5V_PORT = VBUS_UP or EXT_5V (diode-OR)', (20, 140))
 sh.add('J5', 'Connector:Screw_Terminal_01x02', 'EXT 5V', (40, 165),
-       {'1': 'EXT_5V_IN', '2': 'GND'}, 'TerminalBlock:TerminalBlock_bornier-2_P5.08mm')
+       {'1': 'EXT_5V_IN', '2': 'GND'}, 'TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.08mm_Horizontal')
 sh.add('F1', 'Device:Polyfuse', '2A hold', (70, 165), {'1': 'EXT_5V_IN', '2': 'EXT_5V'},
        'Fuse:Fuse_1812_4532Metric')
 sh.add(ref('D'), 'Device:D_Schottky', 'SS34', (100, 160), {'2': 'EXT_5V', '1': '+5V_PORT'}, 'Diode_SMD:D_SMA')
@@ -184,17 +184,33 @@ for i in (1, 2, 3):
     R('1k', vb, f'LED_P{i}', (490, y + 50))
     LED(f'LED_P{i}', 'GND', (505, y + 50))
     sh.add(f'J{i + 1}', 'Connector:USB_A', 'USB-A port', (540, y + 20),
-           {'1': vb, '2': f'P{i}_DM', '3': f'P{i}_DP', '4': 'GND', '5': 'GND'},
+           {'1': vb, '2': f'P{i}_DM', '3': f'P{i}_DP', '4': 'GND', 'SH': 'GND'},
            'Connector_USB:USB_A_Molex_67643_Horizontal')
     sh.add(ref('U'), 'Power_Protection:USBLC6-2SC6', 'USBLC6-2SC6', (480, y + 15),
            {'1': f'P{i}_DP', '6': f'P{i}_DP', '3': f'P{i}_DM', '4': f'P{i}_DM', '5': vb, '2': 'GND'},
            'Package_TO_SOT_SMD:SOT-23-6')
 
 os.makedirs(OUT, exist_ok=True)
-sh.write(os.path.join(OUT, 'ykush_vg.kicad_sch'))
+SCH = os.path.join(OUT, 'ykush_vg.kicad_sch')
+sh.write(SCH)
+sh.write_project_lib('ykush_vg', os.path.join(OUT, 'ykush_vg.kicad_sym'))
+with open(os.path.join(OUT, 'sym-lib-table'), 'w') as f:
+    f.write('(sym_lib_table\n  (version 7)\n'
+            '  (lib (name "ykush_vg")(type "KiCad")(uri "${KIPRJMOD}/ykush_vg.kicad_sym")(options "")'
+            '(descr "YKUSH-VG custom symbols"))\n)\n')
 with open(os.path.join(OUT, 'nets.txt'), 'w') as f:
     for net, nodes in sorted(sh.nets().items()):
         f.write(f'{net}: {" ".join(sorted(nodes))}\n')
+PRO = os.path.join(OUT, 'ykush_vg.kicad_pro')
+if not os.path.exists(PRO):
+    with open(PRO, 'w') as f:
+        f.write('{"meta": {"filename": "ykush_vg.kicad_pro", "version": 3}}\n')
+# Let KiCad re-save the file in its own native format (stable formatting, correct version).
+CLI = os.environ.get('KICAD_CLI', '/opt/kicad10/bin/kicad-cli')
+if os.path.exists(CLI):
+    import subprocess
+    subprocess.run([CLI, 'sch', 'upgrade', '--force', SCH], check=True, capture_output=True)
+
 print('parts', len([p for p in sh.parts if not p['ref'].startswith('#')]))
 
 import bom  # noqa: E402
