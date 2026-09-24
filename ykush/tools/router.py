@@ -47,7 +47,7 @@ FALLBACK_W = (0.3, 0.25, 0.2)
 # routing order: nets that must use the gap under the hub, then USB, then power and the rest
 # (widest first, then shortest).
 PRIORITY = ['XIN', 'XOUT', 'REXT', '+1V8', '+3V3', 'VBUSM',          # through the gap under the hub
-            'UP_DP_A', 'UP_DM', 'UP_DP', 'CC1', 'CC2',                # USB-C
+            'UP_DM_A', 'UP_DP', 'UP_DM', 'CC1', 'CC2',                # USB-C
             'P1_DP', 'P1_DM', 'P2_DP', 'P2_DM', 'P3_DP', 'P3_DM',      # High-Speed port pairs
             'VBUS_UP', 'MCU_DP', 'MCU_DM']                            # FS link may use vias
 

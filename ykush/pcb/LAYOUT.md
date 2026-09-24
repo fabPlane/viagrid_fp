@@ -45,18 +45,26 @@ sits, has none.
 
 1. **Upstream USB-C (J1) sits on the top edge, 0.45 mm in.** Its pads then clear the top via row
    by 0.165 mm. The shell pegs land on GND vias, which is harmless.
-2. **The USB-C D+ pads cannot be joined without a via, so JP1 (0 R) does it.** USB-C interleaves
-   the pads as B6(D+) A7(D-) A6(D+) B7(D-), and no via sits beside them. JP1 carries D+ from A6
-   over the A7 trace.
+2. **The USB-C data pads need a jumper.** USB-C interleaves them as B6(D+) A7(D-) A6(D+)
+   B7(D-), and no via sits beside them. JP1 (0 R) carries D- from A7 over the A6 trace to B7,
+   and the two D+ pads join just below it. The pair then leaves with D+ on the left and D- on
+   the right, matching hub pins 16/15.
+   - **VBUS pads:** both drop straight onto the top-row vias behind them (x 45.95 / 49.95).
+   - **VBUS spine on B.Cu:** it runs along the edge and brings VBUS out at x 41.95, feeding the
+     MCU and hub pin 20, and at x 53.95, feeding C1, D2 and the VBUSM divider.
+   - **CC1/CC2:** with VBUS off the top layer there, they run freely under the pads.
+   - **No upstream ESD.** Its VBUS/GND pins sit between the data pins and cannot be reached
+     without blocking the pair. The three port-side USBLC6s remain.
 3. **The USB-A sockets are at x = 16.4 / 45.0 / 73.2.** These are the only positions where each
    socket's four signal pads clear the lower clusters. The sockets are TE 292303-7: SMT signal
    pins, with only the two shell tabs needing holes.
 4. **Hub port order along the SSOP matches the board.** Port 4 goes to the CH552G, port 3 to J2,
    port 2 to J3 and port 1 to J4. A USB pair can never swap D+/D-, so any other order forces a
    crossing that needs a via.
-5. **The gap under the FE1.1s carries +1V8 (pin 28 → 12), +3V3 (21 → 13), VBUSM, REXT and the
-   crystal.** These nets link the two pin rows. Routing them around the outside would cross the
-   USB pairs.
+5. **The gap under the FE1.1s carries +1V8 (pin 28 → 12), +3V3 (21 → 13), VBUSM and the
+   crystal.** These nets link the two pin rows, and routing them around the outside would cross
+   the USB pairs. The decoupling for pins 12-13 and the REXT resistor sit directly below those
+   pins.
 6. **The CH552G's link is Full-Speed (12 Mbit/s).** It is the only USB link allowed to hop to
    B.Cu through Viagrid vias. The four 480 Mbit/s pairs stay on F.Cu.
 7. **Port 3's support parts sit right of its socket.** The lower-right cluster is on its left.
@@ -65,6 +73,7 @@ sits, has none.
 ## Schematic simplifications made for the layout
 
 - **Debug header dropped.** The CH552G is flashed over USB: hold BOOT while plugging in.
+- **Upstream ESD dropped** (see item 2 above).
 - **Hub activity LED dropped.** FE1.1s DRV/LED pins are outputs and are left open.
 - **FE1.1s XRSTJ and BUSJ are tied to the VBUSM divider** (56k/100k, about 3.2 V) instead of
   having separate pull-ups. All three pins are adjacent.

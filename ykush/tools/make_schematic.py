@@ -57,7 +57,7 @@ sh.lib('ykush_vg:CH552G', CH552G)
 sh.lib('ykush_vg:SY6280AAC', SY6280)
 
 # ---------------------------------------------------------------- helpers
-_n = {'U': 3}  # U1-U3 are placed by hand below
+_n = {'U': 2}  # U1-U2 are placed by hand below
 
 
 def ref(prefix):
@@ -88,22 +88,21 @@ def column(x, y0, dy=20.32):
 
 
 # ================================================================= UPSTREAM
-sh.text('UPSTREAM USB-C (device/UFP) + ESD', (20, 20))
+sh.text('UPSTREAM USB-C (device/UFP)', (20, 20))
 sh.add('J1', 'Connector:USB_C_Receptacle_USB2.0_16P', 'USB-C 16P', (40, 60),
-       {'A1': 'GND', 'A4': 'VBUS_UP', 'A5': 'CC1', 'A6': 'UP_DP_A', 'A7': 'UP_DM',
+       {'A1': 'GND', 'A4': 'VBUS_UP', 'A5': 'CC1', 'A6': 'UP_DP', 'A7': 'UP_DM_A',
         'B5': 'CC2', 'SH': 'GND', 'A9': 'VBUS_UP', 'A12': 'GND', 'B1': 'GND', 'B4': 'VBUS_UP',
         'B6': 'UP_DP', 'B7': 'UP_DM', 'B9': 'VBUS_UP', 'B12': 'GND'},
        'Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12', nc=('A8', 'B8'))
 col = column(95, 40)
-# USB-C D+ pads A6/B6 are interleaved with D- (B6 A7 A6 B7). Viagrid has no via next to the
-# connector, so a 0R jumper carries D+ from A6 over the A7 (D-) trace.
-sh.add('JP1', 'Device:R', '0R', (80, 100), {'1': 'UP_DP_A', '2': 'UP_DP'}, R0603)
+# USB-C data pads are interleaved (B6=D+ A7=D- A6=D+ B7=D-). Viagrid has no via next to the
+# connector, so a 0R jumper carries D- from A7 over the A6 (D+) trace to B7.
+sh.add('JP1', 'Device:R', '0R', (80, 100), {'1': 'UP_DM_A', '2': 'UP_DM'}, R0603)
 R('5.1k', 'CC1', 'GND', next(col))
 R('5.1k', 'CC2', 'GND', next(col))
 C('10uF', 'VBUS_UP', 'GND', next(col))
-sh.add('U2', 'Power_Protection:USBLC6-2SC6', 'USBLC6-2SC6', (60, 110),
-       {'1': 'UP_DP', '6': 'UP_DP', '3': 'UP_DM', '4': 'UP_DM', '5': 'VBUS_UP', '2': 'GND'},
-       'Package_TO_SOT_SMD:SOT-23-6')
+# No upstream ESD: on a Viagrid there is no via to reach its VBUS/GND pins without
+# blocking the upstream pair (see pcb/LAYOUT.md). The three downstream ports keep theirs.
 sh.flag('VBUS_UP', (125, 40))
 sh.flag('GND', (140, 40))
 
@@ -152,7 +151,7 @@ C('100nF', 'VBUSM', 'GND', next(col))
 # ================================================================= MCU
 sh.text('CONTROL: WCH CH552G on hub port 4, always powered from VBUS_UP.', (190, 205))
 sh.text('Boot: hold SW1 while plugging in, or jump to bootloader from firmware.', (190, 211), 1.4)
-sh.add('U3', 'ykush_vg:CH552G', 'CH552G', (250, 250),
+sh.add('U2', 'ykush_vg:CH552G', 'CH552G', (250, 250),
        {'12': 'MCU_DP', '13': 'MCU_DM', '15': 'VBUS_UP', '16': 'V33_MCU', '14': 'GND',
         '1': 'LED_STAT', '9': 'EN1', '10': 'EN2', '11': 'EN3'},
        nc=('2', '3', '4', '5', '6', '7', '8'))  # RST has an internal pull-down

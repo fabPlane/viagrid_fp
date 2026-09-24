@@ -1,8 +1,8 @@
 #,Refs,Qty,Part,Footprint,Shopee / Lazada (Thailand),AliExpress,DigiKey,JLCPCB (LCSC #),JLC type,Notes
 1,U1,1,Terminus FE1.1S-BSOP28 (USB 2.0 HS 4-port hub),SSOP-28_3.9x9.9mm_P0.635mm,YES - Shopee TH (5 pcs),YES,"NO (alt: Microchip USB2514B-AEZC-TR, QFN-36)",C9359,Extended,Buy genuine Rev B (FE1.1S-BSOP28). Cross-border seller: 1-2 weeks.
-2,U2 U5 U7 U9,4,ST USBLC6-2SC6 USB ESD array,SOT-23-6,"YES - Shopee TH, Lazada TH",YES,497-5235-1-ND,C7519,Extended,
-3,U3,1,"WCH CH552G (SOP-16 MCU, USB device)",SOIC-16_3.9x9.9mm_P1.27mm,YES - Shopee TH (variant in WCH multi-chip listing),YES,NO (alt: PIC16F1455-I/SL; needs different firmware),C111292,Extended,Blank chips boot into the USB bootloader.
-4,U4 U6 U8,3,Silergy SY6280AAC load switch,SOT-23-5,NO (MT9700 is on Shopee TH; verify pinout before substituting),YES,"NO (alt: TI TPS2051BDBVR, different pinout)",C55136,Extended,Order from AliExpress/LCSC. Not SY6280AAAC (C207620).
+2,U2,1,"WCH CH552G (SOP-16 MCU, USB device)",SOIC-16_3.9x9.9mm_P1.27mm,YES - Shopee TH (variant in WCH multi-chip listing),YES,NO (alt: PIC16F1455-I/SL; needs different firmware),C111292,Extended,Blank chips boot into the USB bootloader.
+3,U3 U5 U7,3,Silergy SY6280AAC load switch,SOT-23-5,NO (MT9700 is on Shopee TH; verify pinout before substituting),YES,"NO (alt: TI TPS2051BDBVR, different pinout)",C55136,Extended,Order from AliExpress/LCSC. Not SY6280AAAC (C207620).
+4,U4 U6 U8,3,ST USBLC6-2SC6 USB ESD array,SOT-23-6,"YES - Shopee TH, Lazada TH",YES,497-5235-1-ND,C7519,Extended,
 5,Y1,1,YXC X322512MSB4SI 12 MHz 3225 4-pad,Crystal_SMD_3225-4Pin_3.2x2.5mm,NO (only HC-49 seen),YES,Abracon ABM8-12.000MHZ-B2-T (535-9826-1-ND),C9002,Basic,"Passive crystal, not an oscillator. FE1.1s has internal load caps."
 6,J1,1,HRO TYPE-C-31-M-12 (USB 2.0 16-pin),USB_C_Receptacle_HRO_TYPE-C-31-M-12,"YES - Shopee TH (TYPE-C-31-M-12), Lazada TH (16P)",YES,"NO (alt: GCT USB4105-GF-A, 2073-USB4105-GF-ACT-ND)",C165948,Extended,Shell pegs need drilled holes on a Viagrid.
 7,J2 J3 J4,3,"TE 292303-7 USB-A receptacle, right angle, SMT signal pins",USB_A_TE_292303-7_Horizontal,NO (TH has generic THT 4-pin 90deg; different footprint),LIKELY,TE 292303-7,(search LCSC),Extended,SMT signal pads keep the Viagrid build simple; only the 2 shell tabs need holes.
@@ -21,6 +21,6 @@
 20,R5,1,Resistor 56 k 1% 0603,R_0603_1608Metric,"YES - Shopee TH (0603 kit, 33 values x 20)",YES,generic,C23206,Basic,VBUSM divider top (also drives XRSTJ/BUSJ).
 21,R6 R10 R13 R16,4,Resistor 100 k 1% 0603,R_0603_1608Metric,"YES - Shopee TH (0603 kit, 33 values x 20)",YES,generic,C25803,Basic,
 22,R7 R9 R12 R15,4,Resistor 10 k 1% 0603,R_0603_1608Metric,"YES - Shopee TH (0603 kit, 33 values x 20)",YES,generic,C25804,Basic,ISET: 10k = ~0.68 A limit; 6.8k (C23212) = ~1 A.
-23,JP1,1,Resistor 0 R 0603 (jumper over USB-C D- trace),R_0603_1608Metric,"YES - Shopee TH (0603 kit, 33 values x 20)",YES,generic,C21189,Basic,Board jumper: USB-C D+ pads are interleaved with D-.
+23,JP1,1,Resistor 0 R 0603 (jumper over USB-C D+ trace),R_0603_1608Metric,"YES - Shopee TH (0603 kit, 33 values x 20)",YES,generic,C21189,Basic,Board jumper: USB-C data pads are interleaved.
 24,-,1,"Viagrid 9055 Standard blank (90x55 mm, 2-layer, ENIG)",-,NO,NO,NO,-,-,"Opulo (opulo.io), or have JLCPCB/PCBWay make it from the open-source Viagrid files."
 25,-,1,Enclosure Hammond 1591XXB (optional),-,NO (generic ABS boxes only),LIKELY (clones),HM1038-ND (1591XXBBK),-,-,TME Thailand lists Hammond (ships from abroad).
