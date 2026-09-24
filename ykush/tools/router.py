@@ -28,7 +28,7 @@ CLR = 0.15                  # copper clearance, mm
 EDGE_CLR = 0.3              # copper to board edge, mm
 VIA_R = 0.3                 # trimmed Viagrid via copper radius, mm
 VIA_COST = 3.0              # mm-equivalent cost of a layer change
-BCU_MULT = 2.0              # B.Cu costs 2x per mm: keep the bottom mostly ground plane
+BCU_MULT = float(os.environ.get('BCU_MULT', '2.0'))   # B.Cu costs more per mm: keep it a ground plane
 ESCAPE = 0.6                # mm around unrouted pads of other nets ...
 ESCAPE_MULT = 4.0           # ... that cost 4x to cross
 TURN_COST = 0.25            # mm-equivalent cost of a 45-degree direction change
@@ -52,7 +52,10 @@ JUMPER_GROUPS = {'USBLC6-2SC6': [('1', '6'), ('3', '4')]}
 GND_TIES = [('U1', '1', 'Y1', '2'),      # hub VSS -> crystal GND
             ('U3', '2', 'R9', '2'),      # SY6280 GND -> its ISET resistor's GND end
             ('U5', '2', 'R12', '2'),
-            ('U7', '2', 'R15', '2')]
+            ('U7', '2', 'R15', '2'),
+            ('U4', '2', 'J2', '4'),      # port ESD GND -> its socket's GND pin
+            ('U6', '2', 'J3', '4'),
+            ('U8', '2', 'J4', '4')]
 WIDTH.update({f'GND_TIE:{a}.{b}': 0.3 for a, b, _, _ in GND_TIES})
 FALLBACK_W = (0.3, 0.25, 0.2)
 
@@ -117,12 +120,19 @@ class Grid:
         return (xx - ix) ** 2 + (yy - iy) ** 2 <= (r / RES) ** 2
 
     def _mask_seg(self, a, b, w):
+        """Thick segment with round caps. Drawn as a rotated rectangle: PIL's line width is
+        measured along the axis, which makes 45-degree tracks ~30% too thin."""
         img = Image.new('1', (self.W, self.H), 0)
         d = ImageDraw.Draw(img)
         pa = ((a[0] - self.x0) / RES + 0.5, (a[1] - self.y0) / RES + 0.5)
         pb = ((b[0] - self.x0) / RES + 0.5, (b[1] - self.y0) / RES + 0.5)
         r = w / 2 / RES
-        d.line([pa, pb], fill=1, width=max(1, int(round(w / RES))))
+        dx, dy = pb[0] - pa[0], pb[1] - pa[1]
+        L = math.hypot(dx, dy)
+        if L > 1e-9:
+            nx, ny = -dy / L * r, dx / L * r
+            d.polygon([(pa[0] + nx, pa[1] + ny), (pb[0] + nx, pb[1] + ny),
+                       (pb[0] - nx, pb[1] - ny), (pa[0] - nx, pa[1] - ny)], fill=1)
         for p in (pa, pb):
             d.ellipse([p[0] - r, p[1] - r, p[0] + r, p[1] + r], fill=1)
         return np.array(img, bool)
@@ -494,7 +504,9 @@ class Router:
         fixed_own = g.own.copy()
         hist = np.zeros((2, g.H, g.W), np.float32)
         routes = {}                  # net -> (segs, vias, copper mask [2,H,W], width)
-        pres = 0.5
+        pres = float(os.environ.get('PRES0', '0.5'))
+        growth = float(os.environ.get('PRES_GROWTH', '1.5'))
+        hist_w = float(os.environ.get('HIST_W', '1.0'))
         for it in range(iters):
             self.pending = set(order)
             for n in order:
@@ -535,8 +547,8 @@ class Router:
                   f'{", unroutable: " + str(missing) if missing else ""}')
             if not conflicts and not missing:
                 break
-            hist += hot.astype(np.float32) * 1.0
-            pres *= 1.5
+            hist += hot.astype(np.float32) * hist_w
+            pres *= growth
         # legalise: drop conflicting nets (worst first) and reroute them strictly
         g.own[:] = fixed_own
         g.via_net = {}

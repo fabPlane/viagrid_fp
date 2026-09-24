@@ -18,7 +18,7 @@ from sexpr import parse, find, find1
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.join(HERE, '..')
 SCH = os.path.join(ROOT, 'kicad', 'ykush_vg.kicad_sch')
-OUT = os.path.join(ROOT, 'kicad', 'ykush_vg.kicad_pcb')
+OUT = os.environ.get('PCB_OUT') or os.path.join(ROOT, 'kicad', 'ykush_vg.kicad_pcb')
 FPDIR = os.environ.get('KICAD10_FOOTPRINT_DIR', '/opt/kicad10/share/kicad/footprints')
 CLI = os.environ.get('KICAD_CLI', '/opt/kicad10/bin/kicad-cli')
 
