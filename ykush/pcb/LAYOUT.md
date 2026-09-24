@@ -4,10 +4,47 @@ The PCB is built by a script, not drawn by hand:
 
 ```sh
 cd tools
-PYTHONPATH=/opt/kicad10/lib/python3/dist-packages python3 build_pcb.py   # ~15 min
-python3 render.py            # PNG preview
-kicad-cli pcb drc ../kicad/ykush_vg.kicad_pcb
+export PYTHONPATH=/opt/kicad10/lib/python3/dist-packages
+python3 sweep.py        # routes 4 parameter sets in parallel (~25 min), keeps the best
+python3 finish.py       # retries anything left unrouted, re-stitches GND
+python3 drc.py          # KiCad DRC + schematic parity summary
+python3 export_fab.py   # ../fab: laser DXFs, Gerbers, holes to drill, previews
 ```
+
+## Result
+
+KiCad 10.0.6 DRC with schematic parity:
+
+- **Errors:** 0 (no clearance, short, crossing or hole problems).
+- **Unconnected items:** 0.
+- **Schematic mismatches:** 0.
+
+Two kinds of warning remain, and both are expected:
+- **~18 "via_dangling".** These are Viagrid vias that a track passes over and claims. The
+  plated barrel is in the blank whether we use it or not, so it belongs to that net.
+- **1 "starved_thermal".** A GND pad has fewer pour spokes than KiCad's default. It is also
+  tied to ground by a routed track.
+
+You drill **14 holes** yourself (`fab/holes_to_drill.csv`):
+- USB-C: 2 pegs and 4 shell slots
+- USB-A: 6 shell tabs
+- screw terminal: 2 pins
+
+Every other connection is SMD or a Viagrid via. Solder the through-hole parts from B.Cu,
+because holes you drill are not plated.
+
+## How the router works (router.py)
+
+- **Grid A\*, two layers, 0.1 mm cells.** The C core is `astar.c`. Direction changes are
+  limited to 45°/90°. A path may change layer **only at a Viagrid via**.
+- **Negotiated congestion (PathFinder).** Other nets' copper is a cost, not a wall. Cells that
+  stay contested get more expensive every round. Anything still in conflict at the end is
+  rerouted strictly.
+- **GND is routed as a net.** Every SMD GND pad goes to the nearest Viagrid via, which is tied
+  to the B.Cu plane. A few pins that would otherwise get walled in are tied early
+  (`GND_TIES`). The pours then fill around the routing.
+- **Pads joined inside the ESD chip are routed as one target.** The flow-through ESD's pin pairs
+  1-6 and 3-4 are written into the footprint as KiCad jumper pad groups, so DRC agrees.
 
 - `placement.py` places the parts.
 - `router.py` routes the board.
