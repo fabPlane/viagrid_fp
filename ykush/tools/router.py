@@ -42,11 +42,23 @@ WIDTH = {
     'VBUS_P1': 0.6, 'VBUS_P2': 0.6, 'VBUS_P3': 0.6,
 }
 DEFAULT_W = 0.25
+
+# Pads connected inside the part (flow-through ESD). Routed as one target; build_pcb writes
+# them into the footprint as KiCad jumper_pad_groups so DRC agrees.
+JUMPER_GROUPS = {'USBLC6-2SC6': [('1', '6'), ('3', '4')]}
+
+# GND pins that end up walled in by signal traces unless tied early to a nearby GND pad
+# that the pour does reach. (ref, pad, ref, pad)
+GND_TIES = [('U1', '1', 'Y1', '2'),      # hub VSS -> crystal GND
+            ('U3', '2', 'R9', '2'),      # SY6280 GND -> its ISET resistor's GND end
+            ('U5', '2', 'R12', '2'),
+            ('U7', '2', 'R15', '2')]
+WIDTH.update({f'GND_TIE:{a}.{b}': 0.3 for a, b, _, _ in GND_TIES})
 FALLBACK_W = (0.3, 0.25, 0.2)
 
 # routing order: nets that must use the gap under the hub, then USB, then power and the rest
 # (widest first, then shortest).
-PRIORITY = ['XIN', 'XOUT', 'REXT', '+1V8', '+3V3', 'VBUSM',          # through the gap under the hub
+PRIORITY = [f'GND_TIE:{a}.{b}' for a, b, _, _ in GND_TIES] + ['XIN', 'XOUT', 'REXT', '+1V8', '+3V3', 'VBUSM',          # through the gap under the hub
             'UP_DM_A', 'UP_DP', 'UP_DM', 'CC1', 'CC2',                # USB-C
             'P1_DP', 'P1_DM', 'P2_DP', 'P2_DM', 'P3_DP', 'P3_DM',      # High-Speed port pairs
             'VBUS_UP', 'MCU_DP', 'MCU_DM']                            # FS link may use vias
@@ -146,7 +158,40 @@ class Router:
         self.failed = []
         self.pending = set()
         self._soft = None
+        self.padentry = {}
         self._load(vg)
+        gcode = self.code('/GND')
+        for a, pa, b_, pb in GND_TIES:
+            ea, eb = self.padentry.get((a, pa)), self.padentry.get((b_, pb))
+            if ea and eb:
+                name = f'GND_TIE:{a}.{pa}'
+                self.pads[name] = [ea, eb]
+                self.netcode[name] = gcode
+
+    @classmethod
+    def from_board(cls, board, vg):
+        """Router state (grid ownership, claimed vias) rebuilt from an already routed board."""
+        r = cls(board, vg)
+        g = r.g
+        vpos = {(round(v[2], 3), round(v[3], 3)): i for i, v in enumerate(g.vias)}
+        r.used_vias = {}
+        for t in board.GetTracks():
+            name = t.GetNetname()
+            code = r.code(name)
+            if t.GetClass() == 'PCB_VIA':
+                p = t.GetPosition()
+                vi = vpos.get((round(tomm(p.x), 3), round(tomm(p.y), 3)))
+                if vi is not None and key(name) != 'GND':
+                    g.via_net[vi] = code
+                    r.used_vias[vi] = name
+                    m = g._mask_circle(tomm(p.x), tomm(p.y), VIA_R)
+                    g.put(0, m, code)
+                    g.put(1, m, code)
+                continue
+            a, e = t.GetStart(), t.GetEnd()
+            layer = 0 if t.GetLayer() == pcbnew.F_Cu else 1
+            g.put(layer, g._mask_seg((tomm(a.x), tomm(a.y)), (tomm(e.x), tomm(e.y)), tomm(t.GetWidth())), code)
+        return r
 
     def code(self, name):
         if name not in self.netcode:
@@ -182,10 +227,20 @@ class Router:
                     hole = g._mask_circle(tomm(c.x), tomm(c.y), r)
                     for layer in (0, 1):
                         g.own[layer][hole & (g.own[layer] == FREE)] = HARD
-                if name and key(name) != 'GND' and attr != pcbnew.PAD_ATTRIB_NPTH:
+                if name and attr != pcbnew.PAD_ATTRIB_NPTH:
                     # THT holes on a Viagrid are not plated: reachable from B.Cu only
                     access = (1,) if attr == pcbnew.PAD_ATTRIB_PTH else L
-                    self.pads.setdefault(name, []).append((pad, access, masks))
+                    entry = (pad, access, masks)
+                    self.padentry[(fp.GetReference(), pad.GetNumber())] = entry
+                    if key(name) != 'GND':
+                        self.pads.setdefault(name, []).append(entry)
+            for a, b_ in JUMPER_GROUPS.get(fp.GetValue(), []):
+                ea = self.padentry.get((fp.GetReference(), a))
+                eb = self.padentry.get((fp.GetReference(), b_))
+                n = ea and ea[0].GetNetname()
+                if ea and eb and n in self.pads:
+                    merged = (ea[0], ea[1], {L_: ea[2][L_] | eb[2][L_] for L_ in ea[2]})
+                    self.pads[n] = [e for e in self.pads[n] if e not in (ea, eb)] + [merged]
         for x, y in vg['grid_vias']:
             ix, iy = g.cell(x, y)
             m = g._mask_circle(x, y, VIA_R)
@@ -448,7 +503,7 @@ class Router:
                 g.via_net = {}
                 others = np.zeros((2, g.H, g.W), bool)
                 for m, r_ in routes.items():
-                    if m != n:
+                    if m != n and self.code(m) != self.code(n):
                         others |= r_[2]
                 w = WIDTH.get(key(n), DEFAULT_W)
                 res = None
@@ -525,13 +580,13 @@ class Router:
         g = self.g
         conflicts = set()
         hot = np.zeros((2, g.H, g.W), bool)
-        allcm = np.zeros((2, g.H, g.W), np.int16)
-        for r_ in routes.values():
-            allcm += r_[2]
         for n, (segs, vias, cm, w, cells) in routes.items():
             if not cells:
                 continue
-            others = (allcm - cm) > 0
+            others = np.zeros((2, g.H, g.W), bool)
+            for m, r_ in routes.items():
+                if m != n and self.code(m) != self.code(n):
+                    others |= r_[2]
             thr = w / 2 + CLR + RES * 0.5 - 1e-6
             for layer in (0, 1):
                 if not others[layer].any():
@@ -568,7 +623,6 @@ def route_board(board, fps, vg, P):
         x, y = r.g.vias[vi][2:]
         used[(x, y)] = n
     build_pcb.viagrid(board, used)
-    r.board_vias = used
     return r
 
 
@@ -590,17 +644,16 @@ def add_gnd_stubs(board, r, items):
     g = r.g
     code = r.code(build_pcb.GND)
     fps = {fp.GetReference(): fp for fp in board.GetFootprints()}
-    # F.Cu pour outlines; the main one is the largest
-    fpoly = None
+    # pour outlines per layer; the main (largest) one on each layer is the target
+    outlines, main = [], [np.zeros((g.H, g.W), bool), np.zeros((g.H, g.W), bool)]
     for z in board.Zones():
-        if z.GetLayer() == pcbnew.F_Cu:
-            fpoly = z.GetFilledPolysList(pcbnew.F_Cu)
-    outlines = []
-    if fpoly is not None:
-        for i in range(fpoly.OutlineCount()):
-            outlines.append((_poly_raster(g, fpoly, i), i))
-        outlines.sort(key=lambda o: -o[0].sum())
-    main = outlines[0][0] if outlines else np.zeros((g.H, g.W), bool)
+        layer = 0 if z.GetLayer() == pcbnew.F_Cu else 1
+        sps = z.GetFilledPolysList(z.GetLayer())
+        ol = sorted((_poly_raster(g, sps, i) for i in range(sps.OutlineCount())), key=lambda m: -m.sum())
+        if ol:
+            main[layer] = ol[0]
+            if layer == 0:
+                outlines = [(m, i) for i, m in enumerate(ol)]
     taken = set(r.used_vias)
     for it in items:
         if it[0] == 'pad':
@@ -621,18 +674,19 @@ def add_gnd_stubs(board, r, items):
         for w in (0.3, 0.25, 0.2):
             blk, usable = r._blocked(code, w / 2)
             goal = np.zeros((2, g.H, g.W), bool)
-            goal[0] = main & ~blk[0] & ~srcmask
-            for vi in usable:
-                if vi not in taken:
-                    ix, iy = g.vias[vi][:2]
-                    goal[0, iy, ix] = True
-            heur = ndimage.distance_transform_edt(~goal[0]) * RES
+            goal[0] = main[0] & ~blk[0] & ~srcmask
+            goal[1] = main[1] & ~blk[1]
+            free = [vi for vi in usable if vi not in taken]
+            for vi in free:
+                ix, iy = g.vias[vi][:2]
+                goal[0, iy, ix] = True
+            heur = ndimage.distance_transform_edt(~(goal[0] | goal[1])) * RES
             src = [(0, y, x) for y, x in zip(*np.nonzero(srcmask & ~blk[0]))]
             if not src or not goal.any():
                 continue
             mult = np.ones((2, g.H, g.W), np.float32)
-            mult[1] = 50.0                                       # stay on F.Cu
-            path, n = r._astar(code, blk, [], src, goal, heur, mult)
+            mult[1] = 3.0
+            path, n = r._astar(code, blk, free, src, goal, heur, mult)
             if path is None:
                 continue
             if tie is not None:

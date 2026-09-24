@@ -199,8 +199,45 @@ def isolated_gnd_pads(b):
     return sorted(items, key=str)
 
 
+def refill(b):
+    filler = pcbnew.ZONE_FILLER(b)
+    filler.Fill(b.Zones())
+
+
+def stitch_gnd(b, r):
+    """Pour GND, then tie anything the pour leaves stranded (up to 4 rounds).
+    Zones are refilled in place: removing zones from a board breaks KiCad 10's Python
+    footprint wrappers."""
+    import router
+    if not len(list(b.Zones())):
+        gnd_pours(b)
+    else:
+        refill(b)
+    for _ in range(4):
+        iso = isolated_gnd_pads(b)
+        if not iso:
+            break
+        print(f'{len(iso)} GND items cut off from the pour: adding stubs')
+        router.add_gnd_stubs(b, r, iso)
+        refill(b)
+
+
+def stitch_only():
+    """Re-run only the GND pour/stitch step on the saved, routed board."""
+    import router
+    b = pcbnew.LoadBoard(OUT)
+    r = router.Router.from_board(b, VG)
+    stitch_gnd(b, r)
+    b.BuildConnectivity()
+    pcbnew.SaveBoard(OUT, b)
+    tune_project_rules()
+    print('saved', OUT)
+
+
 def main():
     import placement
+    if '--stitch-only' in sys.argv:
+        return stitch_only()
     route = '--no-route' not in sys.argv
     b = new_board()
     comps = netlist()
@@ -208,23 +245,40 @@ def main():
     if route:
         import router
         r = router.route_board(b, fps, VG, P)
-        gnd_pours(b)
-        for _ in range(3):
-            iso = isolated_gnd_pads(b)
-            if not iso:
-                break
-            print(f'{len(iso)} GND pads cut off from the pour: adding stubs to Viagrid vias')
-            router.add_gnd_stubs(b, r, iso)
-            for z in list(b.Zones()):
-                b.Remove(z)
-            gnd_pours(b)
+        stitch_gnd(b, r)
     else:
         viagrid(b)
         gnd_pours(b)
     b.BuildConnectivity()
     pcbnew.SaveBoard(OUT, b)
+    add_jumper_groups()
     tune_project_rules()
     print('saved', OUT)
+
+
+def add_jumper_groups():
+    """Mark pads that are joined inside the part (router.JUMPER_GROUPS) as KiCad jumper pad
+    groups, so DRC does not ask for copper between them. The Python API only exposes these
+    read-only, so edit the saved file."""
+    import router
+    txt = open(OUT).read()
+    out, pos = [], 0
+    for value, groups in router.JUMPER_GROUPS.items():
+        grp = '(jumper_pad_groups ' + ' '.join('(' + ' '.join(f'"{p}"' for p in gr) + ')' for gr in groups) + ')'
+        while True:
+            v = txt.find(f'(property "Value" "{value}"', pos)
+            if v < 0:
+                break
+            start = txt.rfind('\n\t(footprint ', 0, v)
+            dup = txt.find('(duplicate_pad_numbers_are_jumpers', start)
+            eol = txt.find('\n', dup)
+            nxt = txt[eol + 1:eol + 200]
+            if 'jumper_pad_groups' not in nxt.split('\n')[0]:
+                indent = txt[txt.rfind('\n', 0, dup) + 1:dup]
+                txt = txt[:eol + 1] + indent + grp + '\n' + txt[eol + 1:]
+            pos = v + 10
+        pos = 0
+    open(OUT, 'w').write(txt)
 
 
 def tune_project_rules():
