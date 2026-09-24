@@ -105,15 +105,13 @@
     }
   ],
   "nets": [
-    { "name": "VCC_ISO",  "connections": [["J3","VCC"],  ["OK1","A"],   ["R2","A"],  ["C1","A"]] },
-    { "name": "GND_ISO",  "connections": [["J3","GND"],  ["J2","GND"],  ["OK2","E"], ["C1","B"]] },
+    { "name": "VCC_ISO",  "connections": [["J3","VCC"],  ["R2","A"],    ["C1","A"]] },
+    { "name": "GND_ISO",  "connections": [["J3","GND"],  ["J2","GND"],  ["OK1","K"], ["OK2","E"], ["C1","B"]] },
     { "name": "TX_MCU",   "connections": [["J2","TX"],   ["R1","A"]] },
     { "name": "TX_OPT",   "connections": [["R1","B"],    ["OK1","A"]] },
-    { "name": "OK1_K",    "connections": [["OK1","K"],   ["GND_ISO"]] },
     { "name": "VCC_BUS",  "connections": [["J4","VCC"],  ["U1","VCC"],  ["R4","A"],  ["C2","A"]] },
     { "name": "GND_BUS",  "connections": [["J4","GND"],  ["U1","GND"],  ["R5","B"],  ["C2","B"], ["J1","GND"]] },
-    { "name": "DI",       "connections": [["U1","DI"],   ["OK1","C"]] },
-    { "name": "OK1_VCC",  "connections": [["OK1","C"],   ["VCC_BUS"]] },
+    { "name": "DI",       "connections": [["U1","DI"],   ["OK1","C"],   ["VCC_BUS"]] },
     { "name": "DE_RE",    "connections": [["U1","DE"],   ["U1","RE_N"], ["J2","DE"]] },
     { "name": "RO",       "connections": [["U1","RO"],   ["OK2","A"],   ["R2","B"]] },
     { "name": "RX_MCU",   "connections": [["J2","RX"],   ["OK2","C"]] },

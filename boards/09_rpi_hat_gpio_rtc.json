@@ -10,8 +10,8 @@
       "pins": {
         "GPA0":1,"GPA1":2,"GPA2":3,"GPA3":4,"GPA4":5,"GPA5":6,"GPA6":7,"GPA7":8,
         "GPB0":9,"GPB1":10,"GPB2":11,"GPB3":12,"GPB4":13,"GPB5":14,"GPB6":15,"GPB7":16,
-        "VDD":17,"VSS":18,"CS":19,"SCK":20,"SI":21,"SO":22,
-        "A0":23,"A1":24,"A2":25,"RESET":26,"INTB":27,"INTA":28
+        "VDD":17,"VSS":18,"SDA":19,"SCL":20,"NC":21,"INTB":22,
+        "INTA":23,"RESET":24,"A2":25,"A1":26,"A0":27,"GND2":28
       }
     },
     {
@@ -77,13 +77,12 @@
     }
   ],
   "nets": [
-    { "name": "3V3",  "connections": [["J1","3V3_1"],["U1","VDD"],["U2","VCC"],["U3","VCC"],["R1","A"],["R2","A"],["C1","A"],["C2","A"],["C3","A"],["BT1","+"]] },
+    { "name": "3V3",  "connections": [["J1","3V3_1"],["U1","VDD"],["U2","VCC"],["U3","VCC"],["R1","A"],["R2","A"],["C1","A"],["C2","A"],["C3","A"]] },
     { "name": "GND",  "connections": [["J1","GND_6"],["U1","VSS"],["U2","GND"],["U3","GND"],["C1","B"],["C2","B"],["C3","B"],["BT1","-"],["U1","A0"],["U1","A1"],["U1","A2"],["U3","A0"],["U3","A1"],["U3","A2"],["U3","WP"]] },
-    { "name": "SDA",  "connections": [["J1","SDA"],  ["U1","SI"],  ["U2","SDA"],["U3","SDA"],["R1","B"]] },
-    { "name": "SCL",  "connections": [["J1","SCL"],  ["U1","SCK"], ["U2","SCL"],["U3","SCL"],["R2","B"]] },
+    { "name": "SDA",  "connections": [["J1","SDA"],  ["U1","SDA"], ["U2","SDA"],["U3","SDA"],["R1","B"]] },
+    { "name": "SCL",  "connections": [["J1","SCL"],  ["U1","SCL"], ["U2","SCL"],["U3","SCL"],["R2","B"]] },
     { "name": "VBAT", "connections": [["U2","VBAT"], ["BT1","+"]] },
     { "name": "RST",  "connections": [["U1","RESET"],["U1","VDD"]] },
-    { "name": "EEPROM_CS","connections":[["U1","CS"],["U1","VDD"]] },
     { "name": "GPA0", "connections": [["U1","GPA0"], ["J2","GPA0"]] },
     { "name": "GPA1", "connections": [["U1","GPA1"], ["J2","GPA1"]] },
     { "name": "GPA2", "connections": [["U1","GPA2"], ["J2","GPA2"]] },
