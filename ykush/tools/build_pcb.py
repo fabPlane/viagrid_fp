@@ -70,6 +70,9 @@ def new_board():
     ds.m_ViasMinSize = mm(VIA_D)
     ds.m_MinThroughDrill = mm(VIA_DRILL)
     ds.m_CopperEdgeClearance = mm(0.3)
+    # Viagrid via copper is laser-trimmed next to drilled peg holes; the plated barrel itself
+    # stays >= 0.35 mm from any hole we drill, so 0.15 mm copper-to-hole is enough here.
+    ds.m_HoleClearance = mm(0.15)
     nc = ds.m_NetSettings.GetDefaultNetclass()
     nc.SetClearance(mm(CLEARANCE))
     nc.SetTrackWidth(mm(TRACK))
@@ -186,15 +189,17 @@ def isolated_gnd_pads(b):
     for f in (tmp, tmp.replace('.kicad_pcb', '.kicad_prl'), tmp.replace('.kicad_pcb', '.kicad_pro')):
         if os.path.exists(f) and f != OUT:
             os.remove(f)
-    pads = set()
+    items = set()
     for u in d.get('unconnected_items', []):
         for it in u.get('items', []):
             desc = it.get('description', '')
-            if desc.startswith('Pad') and '[/GND]' in desc and 'of ' in desc:
-                ref = desc.split(' of ')[1].split()[0]
-                num = desc.split()[1]
-                pads.add((ref, num))
-    return sorted(pads)
+            if '[/GND]' not in desc:
+                continue
+            if desc.startswith('Pad') and ' of ' in desc:
+                items.add(('pad', desc.split(' of ')[1].split()[0], desc.split()[1]))
+            elif desc.startswith('Zone') and 'F.Cu' in desc:
+                items.add(('zone', round(it['pos']['x'], 2), round(it['pos']['y'], 2)))
+    return sorted(items, key=str)
 
 
 def main():

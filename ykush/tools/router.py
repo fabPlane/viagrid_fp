@@ -370,13 +370,21 @@ class Router:
         c = start_pad.GetPosition()
         first = pts[0]
         segs.insert(0, (first[0], (tomm(c.x), tomm(c.y)), (first[1], first[2]), min(width, self._pad_min(start_pad))))
-        # also claim any free via the path passes over
+        # a free via the path passes close to becomes part of this net (its barrel is real
+        # copper); tie it to the track explicitly so it is never left floating next to it
+        near = {}
         for (layer, iy, ix) in path:
+            x, y = g.x0 + ix * RES, g.y0 + iy * RES
             for vi, v in enumerate(g.vias):
-                if abs(v[0] - ix) * RES <= VIA_R + width / 2 and abs(v[1] - iy) * RES <= VIA_R + width / 2:
-                    if math.hypot((v[0] - ix) * RES, (v[1] - iy) * RES) < VIA_R + width / 2 and vi not in vias:
-                        if g.via_net.get(vi) in (None, code):
-                            vias.append(vi)
+                if vi in vias or g.via_net.get(vi) not in (None, code):
+                    continue
+                d = math.hypot(v[2] - x, v[3] - y)
+                if d < VIA_R + width / 2 + CLR and (vi not in near or d < near[vi][0]):
+                    near[vi] = (d, layer, x, y)
+        for vi, (d, layer, x, y) in near.items():
+            vias.append(vi)
+            if d > 1e-6:
+                segs.append((layer, (x, y), (g.vias[vi][2], g.vias[vi][3]), min(width, 0.25)))
         for layer, a, b, w, in [(s[0], s[1], s[2], s[3]) for s in segs]:
             g.put(layer, g._mask_seg(a, b, w), code)
         for vi in vias:
@@ -564,40 +572,73 @@ def route_board(board, fps, vg, P):
     return r
 
 
-def add_gnd_stubs(board, r, pads):
-    """Tie GND pads the pour cannot reach to the nearest free Viagrid via (which is on GND and
-    stitched to both pours)."""
+def _poly_raster(g, sps, idx):
+    """Raster one outline (minus its holes) of a SHAPE_POLY_SET."""
+    o = sps.Outline(idx)
+    m = g._mask_poly([(tomm(o.CPoint(j).x), tomm(o.CPoint(j).y)) for j in range(o.PointCount())])
+    for h in range(sps.HoleCount(idx)):
+        ho = sps.Hole(idx, h)
+        m &= ~g._mask_poly([(tomm(ho.CPoint(j).x), tomm(ho.CPoint(j).y)) for j in range(ho.PointCount())])
+    return m
+
+
+def add_gnd_stubs(board, r, items):
+    """Tie GND copper the pours leave stranded (pads, or F.Cu pour islands) to the main F.Cu
+    pour or to a free Viagrid via (on GND, stitched to both pours).
+    items: [('pad', ref, num)] or [('zone', x_abs, y_abs)]."""
     import build_pcb
     g = r.g
     code = r.code(build_pcb.GND)
     fps = {fp.GetReference(): fp for fp in board.GetFootprints()}
+    # F.Cu pour outlines; the main one is the largest
+    fpoly = None
+    for z in board.Zones():
+        if z.GetLayer() == pcbnew.F_Cu:
+            fpoly = z.GetFilledPolysList(pcbnew.F_Cu)
+    outlines = []
+    if fpoly is not None:
+        for i in range(fpoly.OutlineCount()):
+            outlines.append((_poly_raster(g, fpoly, i), i))
+        outlines.sort(key=lambda o: -o[0].sum())
+    main = outlines[0][0] if outlines else np.zeros((g.H, g.W), bool)
     taken = set(r.used_vias)
-    for ref, num in pads:
-        pad = next((p for p in fps[ref].Pads() if p.GetNumber() == num), None)
-        if pad is None or not pad.IsOnLayer(pcbnew.F_Cu):
-            continue
+    for it in items:
+        if it[0] == 'pad':
+            pad = next((p for p in fps[it[1]].Pads() if p.GetNumber() == it[2]), None)
+            if pad is None or not pad.IsOnLayer(pcbnew.F_Cu):
+                continue
+            srcmask = np.zeros((g.H, g.W), bool)
+            for poly in pad_polys(pad, pcbnew.F_Cu):
+                srcmask |= g._mask_poly(poly)
+            label, tie = f'{it[1]}.{it[2]}', pad
+        else:
+            ix, iy = g.cell(it[1], it[2])
+            srcmask = next((m for m, _ in outlines[1:] if m[max(iy - 3, 0):iy + 4, max(ix - 3, 0):ix + 4].any()), None)
+            if srcmask is None:
+                continue
+            label, tie = f'pour island at ({it[1] - g.x0:.1f}, {it[2] - g.y0:.1f})', None
+        done = False
         for w in (0.3, 0.25, 0.2):
             blk, usable = r._blocked(code, w / 2)
-            free = [vi for vi in usable if vi not in taken]
             goal = np.zeros((2, g.H, g.W), bool)
-            for vi in free:
-                ix, iy = g.vias[vi][:2]
-                goal[0, iy, ix] = True
-            if not goal.any():
-                continue
+            goal[0] = main & ~blk[0] & ~srcmask
+            for vi in usable:
+                if vi not in taken:
+                    ix, iy = g.vias[vi][:2]
+                    goal[0, iy, ix] = True
             heur = ndimage.distance_transform_edt(~goal[0]) * RES
-            m = np.zeros((g.H, g.W), bool)
-            for poly in pad_polys(pad, pcbnew.F_Cu):
-                m |= g._mask_poly(poly)
-            src = [(0, y, x) for y, x in zip(*np.nonzero(m & ~blk[0]))]
-            if not src:
+            src = [(0, y, x) for y, x in zip(*np.nonzero(srcmask & ~blk[0]))]
+            if not src or not goal.any():
                 continue
             mult = np.ones((2, g.H, g.W), np.float32)
             mult[1] = 50.0                                       # stay on F.Cu
             path, n = r._astar(code, blk, [], src, goal, heur, mult)
             if path is None:
                 continue
-            segs, _ = r._commit(path, code, w, pad)
+            if tie is not None:
+                segs, vias = r._commit(path, code, w, tie)
+            else:
+                segs, vias = r._commit(path, code, w, _Pt(path[0], g))
             for layer, a, b_, ww, c in segs:
                 t = pcbnew.PCB_TRACK(board)
                 t.SetStart(pcbnew.VECTOR2I(mm(a[0]), mm(a[1])))
@@ -606,6 +647,19 @@ def add_gnd_stubs(board, r, pads):
                 t.SetLayer(pcbnew.F_Cu if layer == 0 else pcbnew.B_Cu)
                 t.SetNet(build_pcb.net(board, build_pcb.GND))
                 board.Add(t)
+            done = True
             break
-        else:
-            print(f'   could not tie {ref}.{num} to GND')
+        if not done:
+            print(f'   could not tie {label} to GND')
+
+
+class _Pt:
+    """Minimal stand-in for a pad (position + size) when a stub starts in a pour island."""
+    def __init__(self, cell, g):
+        self._p = pcbnew.VECTOR2I(mm(g.x0 + cell[2] * RES), mm(g.y0 + cell[1] * RES))
+
+    def GetPosition(self):
+        return self._p
+
+    def GetSize(self, layer):
+        return pcbnew.VECTOR2I(mm(0.3), mm(0.3))
